@@ -1,0 +1,73 @@
+name: Release HTML
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 0.1.1"
+        required: true
+        default: "0.1.0"
+      prerelease:
+        description: "Mark as prerelease"
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish HTML release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate version
+        run: |
+          if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use SemVer format: X.Y.Z"
+            exit 1
+          fi
+
+      - name: Build single HTML
+        run: npm run build:single
+
+      - name: Prepare release asset
+        run: |
+          tag="v${{ inputs.version }}"
+          cp dist-single/index.html "space-warrior-${tag}.html"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: space-warrior-v${{ inputs.version }}
+          path: space-warrior-v${{ inputs.version }}.html
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${{ inputs.version }}"
+          args=()
+          if [[ "${{ inputs.prerelease }}" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+
+          gh release create "$tag" \
+            "space-warrior-${tag}.html#space-warrior-${tag}.html" \
+            --target "$GITHUB_SHA" \
+            --title "Space Warrior ${tag}" \
+            --notes "Single-file HTML build of Space Warrior ${tag}." \
+            "${args[@]}"

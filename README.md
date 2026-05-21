@@ -1,63 +1,79 @@
 # Space Warrior
 
-2D-скролл-шутер в духе вертикальных шутеров начала 2000-х. Реализован на TypeScript + PixiJS 8, собирается через Vite.
+Space Warrior is a vertical 2D scrolling shooter inspired by early-2000s arcade shooters. It is built with TypeScript, PixiJS 8, and Vite.
 
-## Игровая концепция
+## Game Concept
 
-- 20 уровней с нарастающей сложностью.
-- 12 архетипов врагов + 5 элитных вариантов, у каждого свои движение, оружие и внешний вид.
-- 20 уникальных боссов в 5 силуэтных вариациях (dreadnought, sphere, crab, carrier, citadel) с собственным акцентным цветом и сценарием боя.
-- 7 типов оружия игрока, каждое с 3 уровнями прокачки. Оружие выпадает из врагов; повторный подбор того же — апгрейд, другого — замена.
-- Дропы здоровья, щитов, скорости, бомб, очков.
-- 3 жизни на партию. Сохранений нет — игра начинается с нуля каждый раз, есть пауза.
-- 6 тематических наборов фоновой графики, многослойный параллакс, процедурные планеты, туманности, заброшенные/горящие космические базы, потоки астероидов.
-- Web Audio синтез SFX и музыки (без аудио-ассетов).
+- 20 levels with escalating difficulty.
+- 12 enemy archetypes plus 5 elite variants, each with its own movement, weapons, and visual style.
+- 20 unique bosses across 5 silhouette families: dreadnought, sphere, crab, carrier, and citadel.
+- 7 player weapons with upgrade levels. Weapon drops either upgrade the current weapon or replace it with a different one.
+- Health, shield, speed, bomb, and score drops.
+- 3 lives per run. There are no saves; each run starts from the beginning, with pause support.
+- Multi-layer parallax backgrounds with procedural planets, star systems, asteroid fields, nebulae, and space structures.
+- Web Audio sound effects and music synthesis, with no external audio assets.
 
-## Запуск
+## Running
 
 ```bash
 npm install
 npm run dev      # http://localhost:5173
 ```
 
-Сборка под продакшн:
+Production build:
 
 ```bash
-npm run build    # выход в dist/
-npx vite preview # просмотр сборки
+npm run build    # outputs to dist/
+npx vite preview # previews the build
 ```
 
-Работает в современных браузерах (проверено в Chromium) и в Safari на macOS. Для нативного `.app`-бандла можно обернуть Vite-выход в Tauri (см. SPEC.md, этап 15).
+Single-file HTML build:
 
-## Управление
+```bash
+npm run build:single # outputs to dist-single/index.html
+```
 
-| Клавиша | Действие |
+The game runs in modern browsers and Safari on macOS.
+
+## Releases
+
+HTML releases are published manually through GitHub Actions:
+
+1. Open `Actions` -> `Release HTML`.
+2. Click `Run workflow`.
+3. Enter a SemVer version without `v`, for example `0.1.1`.
+4. The workflow creates tag `v0.1.1`, a GitHub Release, and attaches `space-warrior-v0.1.1.html`.
+
+Versioning is intentionally simple: `MAJOR.MINOR.PATCH`. Use `PATCH` for small fixes, `MINOR` for notable gameplay changes, and `MAJOR` for large or incompatible releases.
+
+## Controls
+
+| Key | Action |
 |---|---|
-| W/A/S/D или стрелки | Движение |
-| Space | Стрельба (удерживать) |
-| X / Shift | Бомба |
-| Esc / P | Пауза / возобновление |
-| Enter | Подтверждение в меню |
+| W/A/S/D or arrows | Move |
+| Space | Fire while held |
+| X / Shift | Bomb |
+| Esc / P | Pause / resume |
+| Enter | Confirm menu action |
 
-## Структура проекта
+## Project Structure
 
-- `src/engine/` — движок: окно, ввод, game loop, сцены, аудио.
-- `src/game/art/` — процедурная графика и атлас текстур (всё рисуется без внешних PNG).
-- `src/game/entities/` — Player, Enemy, Boss, Projectile, Drop, Particle (объектные пулы).
-- `src/game/enemies/` — реестр архетипов и поведенческие модули (движение/бой).
-- `src/game/weapons/` — 7 оружий игрока.
-- `src/game/levels/` — данные 20 уровней (`levels.ts`) и раннер (`LevelRunner.ts`).
-- `src/game/bosses/` — 20 боссов с собственными паттернами.
-- `src/game/background/` — параллакс-фон.
-- `src/game/vfx/` — частицы, взрывы, экранные эффекты.
-- `src/game/hud/` — внутриигровой HUD.
-- `src/game/scenes/` — MenuScene, GameScene.
-- `SPEC.md` — исходное техническое задание.
+- `src/engine/` - window, input, game loop, scenes, and audio.
+- `src/game/art/` - procedural graphics and texture atlas generation.
+- `src/game/entities/` - Player, Enemy, Boss, Projectile, Drop, and Particle pools.
+- `src/game/enemies/` - enemy archetypes plus movement and combat behavior.
+- `src/game/weapons/` - player weapon definitions.
+- `src/game/levels/` - level data and level runner.
+- `src/game/bosses/` - boss behavior patterns.
+- `src/game/background/` - parallax space background.
+- `src/game/vfx/` - particles, explosions, and screen effects.
+- `src/game/hud/` - in-game HUD.
+- `src/game/scenes/` - MenuScene and GameScene.
 
-## Технические заметки
+## Technical Notes
 
-- Логическое разрешение 1280×720, в окне letterbox по аспекту 16:9.
-- Game loop: фиксированный шаг 60 Hz с накопителем, до 4 шагов догонки за кадр.
-- Все спрайты — RenderTexture, испечённые при загрузке через PIXI.Graphics, поэтому в репозитории нет бинарных ассетов.
-- Коллизии: AABB / circle, прямые проверки пар (на этих масштабах хватает с запасом).
-- Пулы для Projectile / Particle / Enemy / Drop.
+- Logical resolution is 1280x720 with 16:9 letterboxing.
+- The game loop uses a fixed 60 Hz simulation step with an accumulator and up to 4 catch-up steps per frame.
+- Sprites are generated as Pixi RenderTextures during startup, so the repository does not need external sprite PNG assets.
+- Collision checks use circles and simple direct pair checks, which are enough for the current game scale.
+- Projectile, Particle, Enemy, and Drop entities use object pools.

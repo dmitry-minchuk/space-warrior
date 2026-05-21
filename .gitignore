@@ -1,5 +1,6 @@
 .DS_Store
 *.tsbuildinfo
+*.png
 
 node_modules/
 dist/

@@ -87,13 +87,13 @@ export type LevelPhase = 'waves' | 'boss-incoming' | 'boss' | 'cleared';
 // Which archetypes are level-appropriate for the passive density filler.
 // Pulls from progressively richer pools as levels advance.
 function fillerArchetypesForLevel(level: number): string[] {
-  if (level <= 2) return ['scout', 'scout-shooter'];
-  if (level <= 4) return ['scout', 'scout-shooter', 'fighter'];
-  if (level <= 7) return ['scout-shooter', 'fighter', 'interceptor'];
-  if (level <= 10) return ['fighter', 'interceptor', 'kamikaze', 'drone'];
-  if (level <= 14) return ['fighter', 'interceptor', 'kamikaze', 'drone-shooter', 'stealth'];
-  if (level <= 17) return ['elite-scout', 'elite-fighter', 'kamikaze', 'drone-shooter', 'stealth'];
-  return ['elite-scout', 'elite-fighter', 'elite-interceptor', 'kamikaze', 'stealth'];
+  if (level <= 2) return ['scout', 'scout-shooter', 'scout-ambusher'];
+  if (level <= 4) return ['scout-shooter', 'scout-ambusher', 'fighter', 'fighter-pincer'];
+  if (level <= 7) return ['fighter', 'fighter-pincer', 'interceptor', 'interceptor-ace', 'drone-cross'];
+  if (level <= 10) return ['fighter-pincer', 'interceptor-ace', 'kamikaze', 'drone-cross', 'turret-crossfire'];
+  if (level <= 14) return ['fighter-pincer', 'interceptor-ace', 'kamikaze', 'drone-cross', 'stealth', 'tesla-weaver'];
+  if (level <= 17) return ['elite-scout', 'elite-fighter', 'interceptor-ace', 'drone-cross', 'stealth', 'tesla-weaver'];
+  return ['elite-scout', 'elite-fighter', 'elite-interceptor', 'elite-bomber', 'stealth', 'tesla-weaver', 'heavy-breaker'];
 }
 
 export class LevelRunner {
@@ -164,7 +164,7 @@ export class LevelRunner {
     // Pick a formation that suits the group size
     const formations: Formation[] = ['line', 'v', 'arc', 'random', 'strafe-l', 'strafe-r'];
     const f = formations[Math.floor(Math.random() * formations.length)];
-    const count = key === 'drone' || key === 'drone-shooter' ? 4 + Math.floor(Math.random() * 4) : 2 + Math.floor(Math.random() * 3);
+    const count = key === 'drone' || key === 'drone-shooter' || key === 'drone-cross' ? 4 + Math.floor(Math.random() * 4) : 2 + Math.floor(Math.random() * 3);
     this.spawnWave(world, { at: this.time, spawn: key, count, formation: f });
   }
 

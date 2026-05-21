@@ -50,6 +50,18 @@ function weaveTo(b: Boss, dt: number, amp: number, freq: number, centerY: number
   b.y += (centerY - b.y) * Math.min(1, dt * 1.5);
 }
 
+function setBossPhase(b: Boss, phase: number): void {
+  if (b.phase === phase) return;
+  b.phase = phase;
+  b.combatTimer = 0.25;
+  b.combatPhase = 0;
+  b.combatSub = 0;
+  b.burstLeft = 0;
+  b.state.beat = 0;
+  b.state.side = 0.6;
+  b.state.spawn = 1.2;
+}
+
 function aimDir(b: Boss, world: World): { vx: number; vy: number } {
   const dx = world.player.x - b.x;
   const dy = world.player.y - b.y;
@@ -88,6 +100,21 @@ function fireFanDown(world: World, b: Boss, n: number, spread: number, speed: nu
   }
 }
 
+function fireFanFromPoint(world: World, x: number, y: number, n: number, centerAngle: number, spread: number, speed: number, damage: number, visual: EnemyBulletVisual = 'enemyBullet', radius = 7): void {
+  for (let i = 0; i < n; i++) {
+    const t = (i - (n - 1) / 2) / Math.max(1, (n - 1) / 2);
+    const a = centerAngle + t * spread;
+    spawnBullet(world, x, y, Math.cos(a) * speed, Math.sin(a) * speed, damage, visual, radius);
+  }
+}
+
+function fireAimedFromPoint(world: World, x: number, y: number, speed: number, damage: number, visual: EnemyBulletVisual = 'enemyBullet', radius = 7): void {
+  const dx = world.player.x - x;
+  const dy = world.player.y - y;
+  const len = Math.hypot(dx, dy) || 1;
+  spawnBullet(world, x, y, (dx / len) * speed, (dy / len) * speed, damage, visual, radius);
+}
+
 function fireAimed(world: World, b: Boss, speed: number, damage: number, visual: EnemyBulletVisual = 'enemyBullet'): void {
   const d = aimDir(b, world);
   spawnBullet(world, b.x, b.y + 30, d.vx * speed, d.vy * speed, damage, visual);
@@ -107,78 +134,117 @@ function spawnMinion(world: World, archKey: string, x: number, y: number, opts: 
 
 // ---- 1: Patrol Cruiser — twin forward cannons + wing-tip turrets --------
 function bossPatrolCruiser(b: Boss, dt: number, world: World): void {
-  weaveTo(b, dt, 220, 0.55, 130);
-  b.combatTimer -= dt;
   const f = b.hp / b.maxHp;
+  setBossPhase(b, f > 0.6 ? 0 : f > 0.25 ? 1 : 2);
+  weaveTo(b, dt, b.phase === 0 ? 220 : b.phase === 1 ? 270 : 315, b.phase === 0 ? 0.55 : b.phase === 1 ? 0.78 : 0.95, 130);
+  b.combatTimer -= dt;
   if (b.combatTimer <= 0) {
-    // Twin main cannons fire forward straight bursts
-    fireFromPoint(world, b.x - 12, b.y - 40, 0, 320, 12);
-    fireFromPoint(world, b.x + 12, b.y - 40, 0, 320, 12);
-    // Wing-tip turrets aim at player
-    const d = aimDir(b, world);
-    fireFromPoint(world, b.x - 42, b.y + 22, d.vx * 240, d.vy * 240, 10);
-    fireFromPoint(world, b.x + 42, b.y + 22, d.vx * 240, d.vy * 240, 10);
-    if (f < 0.5) {
-      // Add a spread under pressure
-      fireFanDown(world, b, 5, 0.7, 260, 10);
+    const beat = (b.state.beat ?? 0) as number;
+    if (b.phase === 0) {
+      fireFromPoint(world, b.x - 14, b.y - 38, -25, 320, 10);
+      fireFromPoint(world, b.x + 14, b.y - 38, 25, 320, 10);
+      fireAimedFromPoint(world, b.x - 44, b.y + 20, 250, 8);
+      fireAimedFromPoint(world, b.x + 44, b.y + 20, 250, 8);
+      b.combatTimer = 1.0;
+    } else if (beat % 2 === 0) {
+      fireFanFromPoint(world, b.x - 44, b.y + 18, 3, Math.PI / 2 - 0.35, 0.26, 280, 8);
+      fireFanFromPoint(world, b.x + 44, b.y + 18, 3, Math.PI / 2 + 0.35, 0.26, 280, 8);
+      fireFromPoint(world, b.x - 14, b.y - 38, -75, 330, 10);
+      fireFromPoint(world, b.x + 14, b.y - 38, 75, 330, 10);
+      b.combatTimer = 0.8;
+    } else if (b.phase === 1) {
+      fireFanDown(world, b, 5, 0.72, 285, 8, 22);
+      fireAimedFromPoint(world, b.x, b.y - 16, 320, 10);
+      b.combatTimer = 0.95;
+    } else if (beat % 3 === 1) {
+      fireRadial(world, b, 10, 210, 7, 'enemyBullet', 7, b.age * 0.7);
+      fireAimedFromPoint(world, b.x - 44, b.y + 18, 330, 9);
+      fireAimedFromPoint(world, b.x + 44, b.y + 18, 330, 9);
+      b.combatTimer = 0.85;
+    } else {
+      fireFanFromPoint(world, b.x - 48, b.y + 18, 4, Math.PI / 2 - 0.48, 0.34, 300, 8);
+      fireFanFromPoint(world, b.x + 48, b.y + 18, 4, Math.PI / 2 + 0.48, 0.34, 300, 8);
+      spawnBullet(world, b.x, b.y - 42, 0, 360, 11, 'enemyPlasma', 8);
+      b.combatTimer = 0.75;
     }
-    b.combatTimer = f < 0.3 ? 0.7 : 1.0;
+    b.state.beat = beat + 1;
   }
 }
 
 // ---- 2: Asteroid Hauler — heavy chunks from launchers + clamp turrets ---
 function bossAsteroidHauler(b: Boss, dt: number, world: World): void {
-  weaveTo(b, dt, 260, 0.4, 140);
-  b.combatTimer -= dt;
   const f = b.hp / b.maxHp;
+  setBossPhase(b, f > 0.5 ? 0 : 1);
+  weaveTo(b, dt, 260, b.phase === 0 ? 0.4 : 0.58, 140);
+  b.combatTimer -= dt;
   if (b.combatTimer <= 0) {
-    // Twin asteroid launchers fire heavy projectiles
-    fireFromPoint(world, b.x - 38, b.y - 54, -40, 220, 22, 'enemyHeavy');
-    fireFromPoint(world, b.x + 38, b.y - 54, 40, 220, 22, 'enemyHeavy');
-    // 3 forward turrets fire aimed shots
-    const d = aimDir(b, world);
-    for (let i = -1; i <= 1; i++) {
-      fireFromPoint(world, b.x + i * 22, b.y, d.vx * 260, d.vy * 260, 12);
+    const beat = (b.state.beat ?? 0) as number;
+    if (b.phase === 0) {
+      fireFromPoint(world, b.x - 38, b.y - 54, -45, 220, 18, 'enemyHeavy');
+      fireFromPoint(world, b.x + 38, b.y - 54, 45, 220, 18, 'enemyHeavy');
+      for (let i = -1; i <= 1; i++) fireAimedFromPoint(world, b.x + i * 24, b.y, 260, 9);
+      b.combatTimer = 1.7;
+    } else if (beat % 3 === 0) {
+      fireRadial(world, b, 10, 190, 8, 'enemyBullet', 7, b.age * 0.35);
+      b.combatTimer = 1.0;
+    } else {
+      fireFanFromPoint(world, b.x - 40, b.y - 48, 3, Math.PI / 2 - 0.18, 0.32, 250, 14, 'enemyHeavy', 8);
+      fireFanFromPoint(world, b.x + 40, b.y - 48, 3, Math.PI / 2 + 0.18, 0.32, 250, 14, 'enemyHeavy', 8);
+      fireAimedFromPoint(world, b.x, b.y + 16, 310, 10);
+      b.combatTimer = 1.25;
     }
-    if (f < 0.5) {
-      fireRadial(world, b, 12, 200, 10, 'enemyBullet', 7, b.age * 0.4);
-    }
-    b.combatTimer = f < 0.3 ? 1.2 : 1.6;
+    b.state.beat = beat + 1;
   }
 }
 
 // ---- 3: Cyber Crab — claws fire beams, body lays mines ------------------
 function bossCyberCrab(b: Boss, dt: number, world: World): void {
+  const f = b.hp / b.maxHp;
+  setBossPhase(b, f > 0.66 ? 0 : f > 0.33 ? 1 : 2);
   b.state.phase = (b.state.phase ?? 0) + dt * 0.7;
-  b.x = GAME_WIDTH / 2 + Math.sin(b.state.phase) * 300;
+  b.x = GAME_WIDTH / 2 + Math.sin(b.state.phase) * (b.phase === 2 ? 340 : 300);
   b.y += (160 - b.y) * Math.min(1, dt * 1.5);
   b.combatTimer -= dt;
-  const f = b.hp / b.maxHp;
   if (b.combatTimer <= 0) {
-    // Claw beam shots (straight) from claw tips
-    fireFromPoint(world, b.x - 72, b.y - 32, 0, 360, 14, 'enemyPlasma');
-    fireFromPoint(world, b.x + 72, b.y - 32, 0, 360, 14, 'enemyPlasma');
-    // Mouth-cannon spits a 3-wide spread aimed downward
-    fireFanDown(world, b, 3, 0.45, 320, 12, 12);
-    b.combatTimer = 0.75;
+    if (b.phase === 0) {
+      fireAimedFromPoint(world, b.x - 72, b.y - 32, 360, 12, 'enemyPlasma', 8);
+      fireAimedFromPoint(world, b.x + 72, b.y - 32, 360, 12, 'enemyPlasma', 8);
+      fireFanDown(world, b, 3, 0.45, 300, 9, 12);
+      b.combatTimer = 1.0;
+    } else if (b.phase === 1) {
+      fireFanFromPoint(world, b.x - 72, b.y - 32, 3, Math.PI / 2 - 0.32, 0.28, 330, 10, 'enemyPlasma', 8);
+      fireFanFromPoint(world, b.x + 72, b.y - 32, 3, Math.PI / 2 + 0.32, 0.28, 330, 10, 'enemyPlasma', 8);
+      fireAimedFromPoint(world, b.x, b.y + 20, 310, 8);
+      b.combatTimer = 0.9;
+    } else {
+      fireFanDown(world, b, 5, 0.9, 300, 9, 16);
+      fireAimedFromPoint(world, b.x - 72, b.y - 32, 390, 12, 'enemyPlasma', 8);
+      fireAimedFromPoint(world, b.x + 72, b.y - 32, 390, 12, 'enemyPlasma', 8);
+      b.combatTimer = 0.8;
+    }
   }
   b.state.mine = (b.state.mine ?? 0) - dt;
   if (b.state.mine <= 0) {
-    spawnBullet(world, b.x, b.y + 30, 0, 60, 20, 'mine', 10, 16);
-    b.state.mine = f < 0.5 ? 2.0 : 2.8;
+    const count = b.phase === 2 ? 3 : 1;
+    for (let i = 0; i < count; i++) {
+      const t = count === 1 ? 0 : i - 1;
+      spawnBullet(world, b.x, b.y + 30, t * 85, 55 + Math.abs(t) * 18, 18, 'mine', 10, 16);
+    }
+    b.state.mine = b.phase === 0 ? 3.0 : b.phase === 1 ? 2.4 : 2.0;
   }
 }
 
 // ---- 4: Lunar Sentinel — eye charges a sweeping wide laser --------------
 function bossLunarSentinel(b: Boss, dt: number, world: World): void {
-  weaveTo(b, dt, 200, 0.45, 150);
-  b.combatTimer -= dt;
   const f = b.hp / b.maxHp;
+  setBossPhase(b, f > 0.5 ? 0 : 1);
+  weaveTo(b, dt, 200, b.phase === 0 ? 0.45 : 0.62, 150);
+  b.combatTimer -= dt;
   // Phase tracking: 0 idle / 1 charging / 2 firing
   if (b.combatPhase === 0) {
     if (b.combatTimer <= 0) {
       b.combatPhase = 1;
-      b.state.charge = 1.2;
+      b.state.charge = b.phase === 0 ? 1.25 : 0.95;
       // Lock direction at start of charge
       const d = aimDir(b, world);
       b.state.aimX = d.vx;
@@ -187,9 +253,9 @@ function bossLunarSentinel(b: Boss, dt: number, world: World): void {
     // Side turrets fire occasionally during cooldown
     b.state.sideShot = (b.state.sideShot ?? 0) - dt;
     if (b.state.sideShot <= 0) {
-      fireFromPoint(world, b.x - 34, b.y + 14, 0, 280, 10);
-      fireFromPoint(world, b.x + 34, b.y + 14, 0, 280, 10);
-      b.state.sideShot = 1.1;
+      fireFromPoint(world, b.x - 34, b.y + 14, b.phase === 0 ? -30 : -85, 280, 8);
+      fireFromPoint(world, b.x + 34, b.y + 14, b.phase === 0 ? 30 : 85, 280, 8);
+      b.state.sideShot = b.phase === 0 ? 1.15 : 0.85;
     }
   } else if (b.combatPhase === 1) {
     b.state.charge -= dt;
@@ -197,52 +263,57 @@ function bossLunarSentinel(b: Boss, dt: number, world: World): void {
       // Sweeping wide laser — fire many plasma rounds along the locked direction
       const ax = b.state.aimX as number;
       const ay = b.state.aimY as number;
-      // Sweep angle ±0.35 across 7 shots
       const baseAngle = Math.atan2(ay, ax);
-      for (let i = -3; i <= 3; i++) {
-        const a = baseAngle + i * 0.1;
-        spawnBullet(world, b.x, b.y + 6, Math.cos(a) * 480, Math.sin(a) * 480, 14, 'enemyPlasma', 9);
+      const width = b.phase === 0 ? 3 : 4;
+      for (let i = -width; i <= width; i++) {
+        const a = baseAngle + i * (b.phase === 0 ? 0.09 : 0.11);
+        spawnBullet(world, b.x, b.y + 6, Math.cos(a) * 500, Math.sin(a) * 500, 12, 'enemyPlasma', 9);
       }
       world.audio.play('sniper_fire', { volume: 0.3 });
       b.combatPhase = 0;
-      b.combatTimer = f < 0.5 ? 1.8 : 2.4;
+      b.combatTimer = b.phase === 0 ? 2.4 : 1.7;
     }
   }
   // Lower mini-cannons (always firing periodically)
   b.state.mini = (b.state.mini ?? 0) - dt;
   if (b.state.mini <= 0) {
-    fireFromPoint(world, b.x - 16, b.y + 32, -30, 280, 8);
-    fireFromPoint(world, b.x + 16, b.y + 32, 30, 280, 8);
-    b.state.mini = 1.3;
+    fireFromPoint(world, b.x - 16, b.y + 32, b.phase === 0 ? -30 : -70, 280, 7);
+    fireFromPoint(world, b.x + 16, b.y + 32, b.phase === 0 ? 30 : 70, 280, 7);
+    b.state.mini = b.phase === 0 ? 1.3 : 1.0;
   }
 }
 
 // ---- 5: Hive Carrier — constant drone spawn + side turrets + bays -------
 function bossHiveCarrier(b: Boss, dt: number, world: World): void {
-  weaveTo(b, dt, 280, 0.45, 150);
   const f = b.hp / b.maxHp;
+  setBossPhase(b, f > 0.66 ? 0 : f > 0.33 ? 1 : 2);
+  weaveTo(b, dt, b.phase === 2 ? 320 : 280, 0.45 + b.phase * 0.1, 150);
   // Spawn drones in rapid succession
   b.state.spawn = (b.state.spawn ?? 0) - dt;
   if (b.state.spawn <= 0) {
     spawnMinion(world, 'drone', b.x - 60, b.y + 30);
     spawnMinion(world, 'drone', b.x + 60, b.y + 30);
-    if (f < 0.5) spawnMinion(world, 'drone-shooter', b.x, b.y + 30);
-    b.state.spawn = f < 0.5 ? 2.2 : 3.0;
+    if (b.phase >= 1) spawnMinion(world, 'drone-shooter', b.x, b.y + 30);
+    b.state.spawn = b.phase === 0 ? 3.4 : b.phase === 1 ? 2.7 : 2.2;
   }
   // 4 side turrets fire in pairs
   b.state.side = (b.state.side ?? 0) - dt;
   if (b.state.side <= 0) {
-    fireFromPoint(world, b.x - 64, b.y + 0, 0, 280, 10);
-    fireFromPoint(world, b.x + 64, b.y + 0, 0, 280, 10);
-    fireFromPoint(world, b.x - 64, b.y + 18, 0, 280, 10);
-    fireFromPoint(world, b.x + 64, b.y + 18, 0, 280, 10);
-    b.state.side = 1.4;
+    const sideAngle = b.phase === 0 ? 0.12 : 0.32;
+    fireFanFromPoint(world, b.x - 64, b.y + 6, 2 + b.phase, Math.PI / 2 - sideAngle, 0.22, 275, 8);
+    fireFanFromPoint(world, b.x + 64, b.y + 6, 2 + b.phase, Math.PI / 2 + sideAngle, 0.22, 275, 8);
+    b.state.side = b.phase === 0 ? 1.5 : b.phase === 1 ? 1.2 : 0.95;
   }
   // Forward cannons fan
   b.combatTimer -= dt;
   if (b.combatTimer <= 0) {
-    fireFanDown(world, b, 5, 0.7, 240, 12);
-    b.combatTimer = 1.6;
+    if (b.phase === 2) {
+      fireFanDown(world, b, 7, 1.05, 260, 9);
+      fireAimedFromPoint(world, b.x, b.y - 30, 330, 10, 'enemyPlasma', 8);
+    } else {
+      fireFanDown(world, b, b.phase === 0 ? 5 : 6, b.phase === 0 ? 0.65 : 0.85, 245, 9);
+    }
+    b.combatTimer = b.phase === 0 ? 1.7 : b.phase === 1 ? 1.35 : 1.1;
   }
 }
 
@@ -773,15 +844,19 @@ function bossArchitect(b: Boss, dt: number, world: World): void {
 
 export function buildBossSpecs(atlas: Atlas): BossSpec[] {
   const t = atlas.bosses;
-  // Global HP multiplier — bosses were dying too quickly during playtesting.
-  // (Original 1.0× felt trivial; 1.7× still too weak; 3.5× brings boss fights
-  // to a 10-20 sec range with typical weapon levels.)
-  const HPK = 3.5;
+  // Tiered HP multiplier. Boss danger should come from phases and attack
+  // readability rather than one large global HP sponge multiplier.
+  const hpK = (i: number): number =>
+    i < 5 ? 2.0 :
+    i < 12 ? 2.25 :
+    i < 17 ? 2.5 :
+    i < 19 ? 2.75 :
+    3.0;
   const make = (i: number, name: string, hp: number, radius: number, score: number, update: BossSpec['update'], loot: string[] = []): BossSpec => ({
     key: `boss-${i + 1}`,
     name,
     texture: t[i],
-    maxHp: Math.round(hp * HPK),
+    maxHp: Math.round(hp * hpK(i)),
     radius,
     scoreValue: score,
     entryY: 140 + i * 2,

@@ -63,6 +63,36 @@ function aimDirectAt(e: Enemy, world: World, speed: number): { vx: number; vy: n
   return { vx: (dx / len) * speed, vy: (dy / len) * speed };
 }
 
+function fireAtAngle(
+  world: World,
+  e: Enemy,
+  angle: number,
+  speed: number,
+  damage = 6,
+  visual: 'enemyBullet' | 'enemyHeavy' | 'enemyPlasma' | 'enemyBomb' | 'mine' = 'enemyBullet',
+  radius = 6,
+  lifetime = 5,
+): void {
+  fireEnemyShot(world, e, Math.cos(angle) * speed, Math.sin(angle) * speed, damage, visual, radius, lifetime);
+}
+
+function fireFan(
+  world: World,
+  e: Enemy,
+  centerAngle: number,
+  count: number,
+  spread: number,
+  speed: number,
+  damage = 6,
+  visual: 'enemyBullet' | 'enemyHeavy' | 'enemyPlasma' | 'enemyBomb' | 'mine' = 'enemyBullet',
+  radius = 6,
+): void {
+  for (let i = 0; i < count; i++) {
+    const t = (i - (count - 1) / 2) / Math.max(1, (count - 1) / 2);
+    fireAtAngle(world, e, centerAngle + t * spread, speed, damage, visual, radius);
+  }
+}
+
 function ensureTelegraphGfx(world: World): Graphics {
   let g = world.telegraphGfx;
   if (!g || g.destroyed) {
@@ -102,6 +132,21 @@ export const combatForwardSingle: CombatUpdater = (e, dt, world) => {
     e.combatTimer = 1.4 + Math.random() * 0.6;
     fireEnemyShot(world, e, 0, 280);
   }
+};
+
+export const combatScoutAmbush: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  if (e.combatTimer > 0) return;
+  if (e.combatState % 2 === 0) {
+    fireAtAngle(world, e, Math.PI / 2 - 0.34, 260, 5);
+    fireAtAngle(world, e, Math.PI / 2 + 0.34, 260, 5);
+    e.combatTimer = 1.25;
+  } else {
+    const d = aimDirectAt(e, world, 300);
+    fireEnemyShot(world, e, d.vx, d.vy, 6);
+    e.combatTimer = 1.55;
+  }
+  e.combatState++;
 };
 
 export const combatForwardBurst: CombatUpdater = (e, dt, world) => {
@@ -151,6 +196,17 @@ export const combatAimed: CombatUpdater = (e, dt, world) => {
   }
 };
 
+export const combatDroneCross: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  if (e.combatTimer <= 0) {
+    const flip = e.combatState % 2 === 0 ? 1 : -1;
+    fireAtAngle(world, e, Math.PI / 2 + 0.42 * flip, 230, 5);
+    fireAtAngle(world, e, Math.PI / 2 - 0.42 * flip, 230, 5);
+    e.combatState++;
+    e.combatTimer = 1.65 + Math.random() * 0.25;
+  }
+};
+
 // Predictive: tries to lead the player. Use for snipers/turrets later in game.
 export const combatPredictiveAimed: CombatUpdater = (e, dt, world) => {
   e.combatTimer -= dt;
@@ -179,6 +235,24 @@ export const combatTwinBurst: CombatUpdater = (e, dt, world) => {
   }
 };
 
+export const combatFighterAngles: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  if (e.combatTimer > 0) return;
+  if (e.combatState % 2 === 0) {
+    const d = aimDirectAt(e, world, 280);
+    fireEnemyShot(world, e, d.vx, d.vy, 6);
+    fireEnemyShot(world, e, d.vx * 0.92 - 38, d.vy * 0.92, 5);
+    fireEnemyShot(world, e, d.vx * 0.92 + 38, d.vy * 0.92, 5);
+    e.combatTimer = 1.35;
+  } else {
+    fireAtAngle(world, e, Math.PI / 2 - 0.38, 270, 6);
+    fireAtAngle(world, e, Math.PI / 2 + 0.38, 270, 6);
+    fireAtAngle(world, e, Math.PI / 2, 245, 5);
+    e.combatTimer = 1.55;
+  }
+  e.combatState++;
+};
+
 export const combatLobBomb: CombatUpdater = (e, dt, world) => {
   e.combatTimer -= dt;
   if (e.combatTimer <= 0) {
@@ -194,6 +268,37 @@ export const combatMine: CombatUpdater = (e, dt, world) => {
   if (e.combatTimer <= 0) {
     e.combatTimer = 2.4;
     fireEnemyShot(world, e, 0, 30, 14, 'mine', 10, 16);
+  }
+};
+
+export const combatMineArcPressure: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  if (e.combatPhase === 0 && e.combatTimer <= 0) {
+    for (let i = -1; i <= 1; i++) {
+      fireEnemyShot(world, e, i * 80, 70 + Math.abs(i) * 22, 12, 'mine', 10, 15);
+    }
+    e.combatPhase = 1;
+    e.combatTimer = 0.75;
+  } else if (e.combatPhase === 1 && e.combatTimer <= 0) {
+    const d = aimDirectAt(e, world, 260);
+    fireEnemyShot(world, e, d.vx, d.vy, 7);
+    e.combatPhase = 0;
+    e.combatTimer = 2.7;
+  }
+};
+
+export const combatBombFanPressure: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  if (e.combatPhase === 0 && e.combatTimer <= 0) {
+    const dx = world.player.x - e.x;
+    const horiz = Math.max(-180, Math.min(180, dx * 0.75));
+    fireEnemyShot(world, e, horiz, 120, 12, 'enemyBomb', 8, 6);
+    e.combatPhase = 1;
+    e.combatTimer = 0.55;
+  } else if (e.combatPhase === 1 && e.combatTimer <= 0) {
+    fireFan(world, e, Math.PI / 2, 5, 0.55, 250, 5);
+    e.combatPhase = 0;
+    e.combatTimer = 2.5;
   }
 };
 
@@ -216,6 +321,32 @@ export const combatLaserCharge: CombatUpdater = (e, dt, world) => {
       world.audio.play('sniper_fire', { volume: 0.3 });
       e.combatPhase = 0;
       e.combatTimer = 2.8 + Math.random() * 0.6;
+    }
+  }
+};
+
+export const combatSniperAce: CombatUpdater = (e, dt, world) => {
+  if (e.combatPhase === 0) {
+    e.combatTimer -= dt;
+    if (e.combatTimer <= 0) {
+      e.combatPhase = 1;
+      e.laserChargeT = 1.15;
+      e.combatState = 0;
+    }
+  } else if (e.combatPhase === 1) {
+    e.laserChargeT -= dt;
+    const t = 1 - Math.max(0, e.laserChargeT / 1.15);
+    drawTelegraph(world, e, t, 0xff7040);
+    if (e.combatState === 0 && t > 0.45) {
+      e.combatState = 1;
+      fireFan(world, e, Math.PI / 2, 4, 0.75, 190, 5);
+    }
+    if (e.laserChargeT <= 0) {
+      const d = predictPlayerLead(e, world, 640);
+      fireEnemyShot(world, e, d.vx, d.vy, 20, 'enemyPlasma', 8);
+      world.audio.play('sniper_fire', { volume: 0.3 });
+      e.combatPhase = 0;
+      e.combatTimer = 2.5 + Math.random() * 0.5;
     }
   }
 };
@@ -257,6 +388,45 @@ export const combatSweep: CombatUpdater = (e, dt, world) => {
   }
 };
 
+export const combatTurretCrossfire: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  if (e.combatTimer <= 0) {
+    e.combatTimer = 2.6;
+    e.combatState = (e.combatState + 1) % 2;
+    e.burstLeft = 6;
+    e.burstInterval = 0;
+  }
+  if (e.burstLeft > 0) {
+    e.burstInterval -= dt;
+    if (e.burstInterval <= 0) {
+      e.burstInterval = 0.2;
+      const step = 6 - e.burstLeft;
+      const lane = -0.55 + step * 0.22;
+      const angle = Math.PI / 2 + (e.combatState === 0 ? lane : -lane);
+      fireAtAngle(world, e, angle, 270, 7);
+      e.burstLeft--;
+    }
+  }
+};
+
+export const combatTeslaWeaver: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  const dx = world.player.x - e.x;
+  const dy = world.player.y - e.y;
+  const dist = Math.hypot(dx, dy);
+  if (e.combatTimer > 0) return;
+  if (e.combatState % 3 === 0 && dist < 420) {
+    const len = dist || 1;
+    fireEnemyShot(world, e, (dx / len) * 500, (dy / len) * 500, 13, 'enemyPlasma', 8, 1.4);
+    fireFan(world, e, Math.PI / 2, 3, 0.55, 230, 7, 'enemyPlasma', 8);
+    e.combatTimer = 1.45;
+  } else {
+    fireFan(world, e, Math.PI / 2, 5, 0.8, 230, 7, 'enemyPlasma', 8);
+    e.combatTimer = 1.85;
+  }
+  e.combatState++;
+};
+
 // Periodic spawning of a small follow-up shot, used by some elite ships
 // that ought to feel more dangerous than the base archetype.
 export const combatRapidAimed: CombatUpdater = (e, dt, world) => {
@@ -284,4 +454,53 @@ export const combatMixedFire: CombatUpdater = (e, dt, world) => {
     e.combatPhase = 0;
     e.combatTimer = 2.2 + Math.random() * 0.4;
   }
+};
+
+export const combatCommanderFighter: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  if (e.combatTimer > 0) return;
+  const mode = e.combatState % 3;
+  if (mode === 0) {
+    const d = aimDirectAt(e, world, 300);
+    fireEnemyShot(world, e, d.vx, d.vy, 7);
+    fireEnemyShot(world, e, d.vx * 0.92 - 45, d.vy * 0.92, 6);
+    fireEnemyShot(world, e, d.vx * 0.92 + 45, d.vy * 0.92, 6);
+    e.combatTimer = 1.3;
+  } else if (mode === 1) {
+    fireAtAngle(world, e, Math.PI / 2 - 0.52, 280, 6);
+    fireAtAngle(world, e, Math.PI / 2 + 0.52, 280, 6);
+    fireAtAngle(world, e, Math.PI / 2 - 0.26, 250, 5);
+    fireAtAngle(world, e, Math.PI / 2 + 0.26, 250, 5);
+    e.combatTimer = 1.1;
+  } else {
+    const d = predictPlayerLead(e, world, 340);
+    fireEnemyShot(world, e, d.vx, d.vy, 9, 'enemyPlasma', 8);
+    e.combatTimer = 1.7;
+  }
+  e.combatState++;
+};
+
+export const combatInterceptorBackshot: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  if (e.combatTimer > 0) return;
+  const d = aimDirectAt(e, world, 330);
+  fireEnemyShot(world, e, d.vx, d.vy, 7);
+  if (e.y > world.player.y - 20) {
+    fireFan(world, e, -Math.PI / 2, 3, 0.45, 260, 5);
+  }
+  e.combatTimer = 1.0 + Math.random() * 0.25;
+};
+
+export const combatHeavyBreaker: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  if (e.combatTimer > 0) return;
+  if (e.combatState % 2 === 0) {
+    fireFan(world, e, Math.PI / 2, 7, 0.65, 230, 8, 'enemyHeavy', 8);
+    e.combatTimer = 2.0;
+  } else {
+    const d = predictPlayerLead(e, world, 360);
+    fireEnemyShot(world, e, d.vx, d.vy, 14, 'enemyPlasma', 9);
+    e.combatTimer = 1.2;
+  }
+  e.combatState++;
 };

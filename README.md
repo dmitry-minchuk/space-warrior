@@ -5,7 +5,7 @@ Space Warrior is a vertical 2D scrolling shooter inspired by early-2000s arcade 
 ## Game Concept
 
 - 20 levels with escalating difficulty.
-- 12 enemy archetypes plus 5 elite variants, each with its own movement, weapons, and visual style.
+- 12 core enemy archetypes plus elite and tactical variants, each with its own movement, weapons, and visual style.
 - 20 unique bosses across 5 silhouette families: dreadnought, sphere, crab, carrier, and citadel.
 - 6 player weapons with 5 upgrade levels. Weapon drops either upgrade the current weapon or replace it with a different one.
 - Health, shield, speed, bomb, and score drops.
@@ -89,24 +89,31 @@ Enemy speed includes the global `ENEMY_SPEED_MUL = 0.8`.
 |---|---:|---:|---:|---:|
 | Scout | 20 | 176 | 8 | 50 |
 | Scout Shooter | 24 | 160 | 8 | 80 |
+| Scout Ambusher | 26 | 184 | 9 | 90 |
 | Fighter | 45 | 120 | 10 | 120 |
+| Fighter Pincer | 55 | 160 | 12 | 160 |
 | Bomber | 100 | 72 | 14 | 250 |
+| Bomber Captain | 120 | 76 | 15 | 300 |
 | Interceptor | 40 | 224 | 12 | 180 |
+| Interceptor Ace | 48 | 244 | 14 | 220 |
 | Drone | 12 | 128 | 6 | 30 |
 | Drone Shooter | 16 | 112 | 6 | 60 |
+| Drone Cross | 18 | 116 | 7 | 70 |
 | Turret | 130 | 64 | 10 | 220 |
+| Turret Crossfire | 115 | 68 | 10 | 260 |
 | Miner | 60 | 88 | 10 | 160 |
 | Sniper | 55 | 64 | 10 | 220 |
 | Kamikaze | 30 | 192 | 30 | 90 |
 | Heavy | 220 | 56 | 18 | 400 |
+| Heavy Breaker | 190 | 60 | 19 | 460 |
 | Stealth | 80 | 128 | 12 | 240 |
 | Tesla | 85 | 96 | 12 | 220 |
-| Elite Scout | 55 | 256 | 12 | 150 |
-| Elite Fighter | 90 | 152 | 14 | 220 |
-| Elite Bomber | 200 | 88 | 18 | 400 |
-| Elite Interceptor | 80 | 288 | 16 | 300 |
-| Elite Heavy | 440 | 72 | 24 | 800 |
-| Fighter Pincer | 55 | 160 | 12 | 160 |
+| Tesla Weaver | 90 | 108 | 13 | 270 |
+| Elite Scout | 45 | 256 | 12 | 150 |
+| Elite Fighter | 75 | 152 | 14 | 220 |
+| Elite Bomber | 155 | 88 | 18 | 400 |
+| Elite Interceptor | 65 | 288 | 16 | 300 |
+| Elite Heavy | 320 | 72 | 24 | 800 |
 | Scout Bouncer | 28 | 144 | 8 | 80 |
 
 ### Enemy Projectile Interception
@@ -130,40 +137,51 @@ Enemy speed includes the global `ENEMY_SPEED_MUL = 0.8`.
 | Aimed | 1 x 6 damage | 1.6-2.0s | 3.3 |
 | Predictive Aimed | 1 x 6 damage | 1.8-2.2s | 3.0 |
 | Twin Burst | 2 x 6 damage | 2.2s | 5.5 |
+| Scout Ambush | 2 diagonal shots, then 1 aimed shot | About 2.8s | 5.7 |
+| Fighter Angles | 3 aimed shots, then 3 diagonal lane shots | About 2.9s | 13.1 |
+| Drone Cross | Alternating 2-shot diagonal cross | 1.65-1.9s | 5.3-6.1 |
 | Lob Bomb | 1 x 12 damage | 3.0s | 4.0 |
 | Mine | 1 x 14 damage | 2.4s | 5.8 |
+| Mine Arc Pressure | 3 x 12 mines, then 1 x 7 shot | About 3.45s | 12.5 |
 | Laser Charge | 1 x 22 damage | About 4.2s | 5.2 |
+| Sniper Ace | 4 x 5 side bullets, then 1 x 20 plasma | About 3.65s | 11.0 |
 | Chain Lightning | 1 x 14 damage | 1.4s when close | 10.0 |
 | Sweep | 7 x 8 damage | 3.0s | 18.7 |
 | Rapid Aimed | 1 x 6 damage | 0.8-1.0s | 6.7 |
 | Mixed Fire | 2 x 6 damage, then 1 x 10 plasma | About 2.85s | 7.7 |
+| Bomb Fan Pressure | 1 x 12 bomb, then 5 x 5 fan | About 3.05s | 12.1 |
+| Commander Fighter | Aimed triple, diagonal lanes, plasma lead | About 4.1s | 12.2 |
+| Interceptor Backshot | Aimed shot plus optional rear fan | 1.0-1.25s | 5.6-20.0 |
+| Turret Crossfire | 6 alternating lane shots | 2.6s | 16.2 |
+| Tesla Weaver | Aimed plasma plus plasma fans | 1.45-1.85s | 18.9-23.0 |
+| Heavy Breaker | 7 x 8 heavy fan, then 1 x 14 plasma | About 3.2s | 21.9 |
 
 ### Bosses
 
-Boss HP includes the global `HPK = 3.5` multiplier.
+Boss HP uses tiered multipliers: 2.0x for bosses 1-5, 2.25x for bosses 6-12, 2.5x for bosses 13-17, 2.75x for bosses 18-19, and 3.0x for boss 20.
 
 | Level | Boss | HP | Radius | Score |
 |---:|---|---:|---:|---:|
-| 1 | Patrol Cruiser | 2275 | 70 | 2000 |
-| 2 | Asteroid Hauler | 3150 | 80 | 2500 |
-| 3 | Cyber Crab | 3675 | 80 | 3000 |
-| 4 | Lunar Sentinel | 4200 | 80 | 3500 |
-| 5 | Hive Carrier | 4725 | 85 | 4000 |
-| 6 | Wreck Behemoth | 5250 | 90 | 4500 |
-| 7 | Mine Mother | 5775 | 90 | 5000 |
-| 8 | Ghost Sniper | 5250 | 80 | 5500 |
-| 9 | Kamikaze Queen | 6125 | 90 | 6000 |
-| 10 | Saturn Dreadnought | 7700 | 100 | 7000 |
-| 11 | Phantom | 6825 | 90 | 7500 |
-| 12 | Storm Sphere | 7700 | 95 | 8000 |
-| 13 | Blazing Citadel | 8925 | 100 | 9000 |
-| 14 | Gravity Lord | 9800 | 100 | 10000 |
-| 15 | Hive Mind | 10500 | 105 | 11000 |
-| 16 | Event Horizon | 11550 | 110 | 12000 |
-| 17 | Factory Core | 12600 | 115 | 13500 |
-| 18 | Imperial Flagship | 14700 | 120 | 15000 |
-| 19 | Citadel Guardian | 16450 | 125 | 17500 |
-| 20 | The Architect | 20300 | 130 | 25000 |
+| 1 | Patrol Cruiser | 1300 | 70 | 2000 |
+| 2 | Asteroid Hauler | 1800 | 80 | 2500 |
+| 3 | Cyber Crab | 2100 | 80 | 3000 |
+| 4 | Lunar Sentinel | 2400 | 80 | 3500 |
+| 5 | Hive Carrier | 2700 | 85 | 4000 |
+| 6 | Wreck Behemoth | 3375 | 90 | 4500 |
+| 7 | Mine Mother | 3713 | 90 | 5000 |
+| 8 | Ghost Sniper | 3375 | 80 | 5500 |
+| 9 | Kamikaze Queen | 3938 | 90 | 6000 |
+| 10 | Saturn Dreadnought | 4950 | 100 | 7000 |
+| 11 | Phantom | 4388 | 90 | 7500 |
+| 12 | Storm Sphere | 4950 | 95 | 8000 |
+| 13 | Blazing Citadel | 6375 | 100 | 9000 |
+| 14 | Gravity Lord | 7000 | 100 | 10000 |
+| 15 | Hive Mind | 7500 | 105 | 11000 |
+| 16 | Event Horizon | 8250 | 110 | 12000 |
+| 17 | Factory Core | 9000 | 115 | 13500 |
+| 18 | Imperial Flagship | 11550 | 120 | 15000 |
+| 19 | Citadel Guardian | 12925 | 125 | 17500 |
+| 20 | The Architect | 17400 | 130 | 25000 |
 
 ### Scripted Level Load
 
@@ -171,26 +189,26 @@ This table counts scripted waves only. Passive filler enemies can add extra load
 
 | Level | Name | Duration | Scripted waves | Scripted enemies | Scripted enemy HP | HP/s |
 |---:|---|---:|---:|---:|---:|---:|
-| 1 | Earth Patrol | 100 | 9 | 49 | 1219 | 12.2 |
-| 2 | Orbital Defense | 110 | 9 | 55 | 1665 | 15.1 |
-| 3 | Asteroid Belt | 120 | 10 | 48 | 2169 | 18.1 |
-| 4 | Lunar Base | 130 | 11 | 50 | 2151 | 16.5 |
-| 5 | Belt Outskirts | 130 | 11 | 86 | 1818 | 14.0 |
-| 6 | Abandoned Station | 130 | 11 | 38 | 2800 | 21.5 |
-| 7 | Mine Fields | 130 | 11 | 43 | 2480 | 19.1 |
-| 8 | Dark Sector | 135 | 11 | 38 | 2215 | 16.4 |
-| 9 | Blockade | 135 | 11 | 52 | 2100 | 15.6 |
-| 10 | Saturn Wreckage | 140 | 11 | 35 | 3085 | 22.0 |
-| 11 | Ghost Nebula | 140 | 11 | 37 | 2750 | 19.6 |
-| 12 | Energy Storm | 140 | 11 | 42 | 3205 | 22.9 |
-| 13 | Blazing Outpost | 145 | 11 | 58 | 4390 | 30.3 |
-| 14 | Gravity Anomalies | 145 | 11 | 46 | 6035 | 41.6 |
-| 15 | Alien Hive | 150 | 12 | 121 | 3728 | 24.9 |
-| 16 | Event Horizon | 150 | 11 | 48 | 7465 | 49.8 |
-| 17 | Enemy Factories | 155 | 12 | 60 | 6425 | 41.5 |
-| 18 | Imperial Fleet | 160 | 11 | 69 | 8050 | 50.3 |
-| 19 | Citadel Perimeter | 165 | 13 | 72 | 7060 | 42.8 |
-| 20 | Final Battle | 175 | 14 | 96 | 10750 | 61.4 |
+| 1 | Earth Patrol | 100 | 9 | 46 | 1329 | 13.3 |
+| 2 | Orbital Defense | 110 | 9 | 50 | 1674 | 15.2 |
+| 3 | Asteroid Belt | 120 | 10 | 45 | 2246 | 18.7 |
+| 4 | Lunar Base | 130 | 11 | 48 | 2318 | 17.8 |
+| 5 | Belt Outskirts | 130 | 11 | 80 | 1919 | 14.8 |
+| 6 | Abandoned Station | 130 | 11 | 38 | 2874 | 22.1 |
+| 7 | Mine Fields | 130 | 11 | 43 | 2642 | 20.3 |
+| 8 | Dark Sector | 135 | 11 | 37 | 2302 | 17.1 |
+| 9 | Blockade | 135 | 11 | 51 | 2312 | 17.1 |
+| 10 | Saturn Wreckage | 140 | 11 | 35 | 3057 | 21.8 |
+| 11 | Ghost Nebula | 140 | 11 | 37 | 2740 | 19.6 |
+| 12 | Energy Storm | 140 | 11 | 42 | 3380 | 24.1 |
+| 13 | Blazing Outpost | 145 | 11 | 58 | 3865 | 26.7 |
+| 14 | Gravity Anomalies | 145 | 11 | 46 | 5063 | 34.9 |
+| 15 | Alien Hive | 150 | 12 | 115 | 3495 | 23.3 |
+| 16 | Event Horizon | 150 | 11 | 48 | 5310 | 35.4 |
+| 17 | Enemy Factories | 155 | 12 | 60 | 5380 | 34.7 |
+| 18 | Imperial Fleet | 160 | 11 | 67 | 6890 | 43.1 |
+| 19 | Citadel Perimeter | 165 | 13 | 72 | 5935 | 36.0 |
+| 20 | Final Battle | 175 | 14 | 96 | 8350 | 47.7 |
 
 ### Drop Rules
 
@@ -230,6 +248,24 @@ Weights are raw roll probabilities before drop smoothing, pity rules, and weapon
 ## Roadmap
 
 This roadmap is focused on balance quality rather than raw feature count. The goal is to move difficulty away from simple HP inflation and toward readable enemy behavior, clear counterplay, controlled screen density, and measurable time-to-kill targets.
+
+### Roadmap Status
+
+| Area | Status | Notes |
+|---|---|---|
+| 1. Instrument the Balance Loop | Not started | Telemetry and debug run summaries are still needed. |
+| 2. Rebalance Weapon Roles | Partial | Missile handling, plasma lightning reach, and global non-missile rate of fire were adjusted, but full weapon role tuning is still open. |
+| 3. Rework Weapon Progression | Not started | LV5 identity and upgrade pacing are unchanged. |
+| 4. Rebalance Drops and Economy | Partial | Drop smoothing and pity rules were improved, but HP-aware economy tuning is still open. |
+| 5. Redesign Enemy Families Around Roles | Done, first pass | Core enemy families now have clearer tactical roles and reduced late-game HP inflation. |
+| 6. Add Multi-Pattern Enemy Variants | Done, first pass | Added Scout Ambusher, Bomber Captain, Interceptor Ace, Drone Cross, Turret Crossfire, Heavy Breaker, and Tesla Weaver. |
+| 7. Improve Attack Angles and Patterns | Done, first pass | Added side pincers, diagonal lanes, rear shots, mine arcs, bomb fans, crossfire, and plasma fan pressure. |
+| 8. Rebuild Bosses Around Phases | Partial | Early bosses and existing boss scripts now use clearer phase escalation and reduced HP, but boss parts/forms are still future work. |
+| 9. Add Boss Parts and Transformations | Not started | Destructible boss systems and transformation visuals are not implemented yet. |
+| 10. Smooth Level Difficulty | Done, first pass | All 20 level scripts now introduce tactical variants progressively, with reduced late HP spikes. |
+| 11. Manage Screen Readability | Partial | Background clutter and projectile interception clarity were improved, but combat readability still needs playtest tuning. |
+| 12. Define Playtest Targets | Done | Target metrics are documented below; actual telemetry collection is still part of item 1. |
+| 13. Suggested Implementation Order | Done | The implementation order is documented below. |
 
 ### 1. Instrument the Balance Loop
 

@@ -1,0 +1,262 @@
+import { Container } from 'pixi.js';
+import type { World } from '../world';
+import { Particle } from '../entities/Particle';
+
+function spawnParticle(world: World, layer: Container, opts: Parameters<Particle['configure']>[0]): void {
+  const p = world.particlePool.spawn(opts, layer);
+  world.particles.push(p);
+}
+
+export function emitEngineTrail(world: World, x: number, y: number): void {
+  const a = world.atlas.particles;
+  // Wide cyan plume — the bulk of the trail
+  spawnParticle(world, world.layers.effectsUnder, {
+    texture: a.softCyan,
+    x: x + (Math.random() - 0.5) * 5,
+    y,
+    vx: (Math.random() - 0.5) * 24,
+    vy: 220 + Math.random() * 80,
+    life: 0.5,
+    scale: 1.05,
+    endScale: 0.15,
+    blend: 'add',
+    alpha: 0.85,
+    tint: 0xb8eaff,
+  });
+  // Bright white-hot core that fades fast — visually anchors the nozzle
+  spawnParticle(world, world.layers.effectsUnder, {
+    texture: a.softWhite,
+    x,
+    y,
+    vx: (Math.random() - 0.5) * 10,
+    vy: 200 + Math.random() * 40,
+    life: 0.2,
+    scale: 0.45,
+    endScale: 0.05,
+    blend: 'add',
+    alpha: 0.95,
+  });
+  // Occasional bright spark for crackle / motion read
+  if (Math.random() < 0.22) {
+    spawnParticle(world, world.layers.effectsUnder, {
+      texture: a.hardWhite,
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 80,
+      vy: 240 + Math.random() * 80,
+      life: 0.35,
+      scale: 1.2,
+      endScale: 0.2,
+      blend: 'add',
+      tint: 0xeaffff,
+      drag: 3,
+    });
+  }
+}
+
+export function emitEnemyEngine(world: World, x: number, y: number, tint = 0xff9a3a): void {
+  const a = world.atlas.particles;
+  spawnParticle(world, world.layers.effectsUnder, {
+    texture: a.softOrange,
+    x: x + (Math.random() - 0.5) * 6,
+    y,
+    vx: (Math.random() - 0.5) * 20,
+    vy: -80 - Math.random() * 30,
+    life: 0.3,
+    scale: 0.5,
+    endScale: 0.05,
+    blend: 'add',
+    alpha: 0.6,
+    tint,
+  });
+}
+
+export function hitSpark(world: World, x: number, y: number, color = 0xffe2c8): void {
+  const a = world.atlas.particles;
+  // Bright white core flash (largest)
+  spawnParticle(world, world.layers.effectsOver, {
+    texture: a.softWhite,
+    x, y,
+    vx: 0, vy: 0,
+    life: 0.18,
+    scale: 1.8,
+    endScale: 0.3,
+    blend: 'add',
+  });
+  // Color-tinted secondary flash
+  spawnParticle(world, world.layers.effectsOver, {
+    texture: a.softWhite,
+    x, y,
+    vx: 0, vy: 0,
+    life: 0.28,
+    scale: 1.0,
+    endScale: 2.4,
+    blend: 'add',
+    tint: color,
+    alpha: 0.85,
+  });
+  // Expanding ring (uses the small explosion texture for shape)
+  spawnParticle(world, world.layers.effectsOver, {
+    texture: world.atlas.explosions[0],
+    x, y,
+    vx: 0, vy: 0,
+    life: 0.28,
+    scale: 0.35,
+    endScale: 0.9,
+    blend: 'add',
+    tint: color,
+    alpha: 0.9,
+  });
+  // Sparkle particles — 10 outward
+  for (let i = 0; i < 10; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 140 + Math.random() * 220;
+    spawnParticle(world, world.layers.effectsOver, {
+      texture: a.hardWhite,
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 0.32 + Math.random() * 0.18,
+      scale: 1.6,
+      endScale: 0.4,
+      blend: 'add',
+      tint: color,
+      drag: 4,
+    });
+  }
+  // A few orange embers for "meat"
+  for (let i = 0; i < 4; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 60 + Math.random() * 120;
+    spawnParticle(world, world.layers.effectsOver, {
+      texture: a.hardOrange,
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 0.45,
+      scale: 1.2,
+      endScale: 0.3,
+      blend: 'add',
+      tint: 0xffaa55,
+      drag: 2.5,
+    });
+  }
+}
+
+// Big shockwave for boss/heavy hits.
+export function bigHit(world: World, x: number, y: number, color = 0xffd166): void {
+  hitSpark(world, x, y, color);
+  // Extra ring
+  spawnParticle(world, world.layers.effectsOver, {
+    texture: world.atlas.explosions[1],
+    x, y,
+    vx: 0, vy: 0,
+    life: 0.5,
+    scale: 0.3,
+    endScale: 1.4,
+    blend: 'add',
+    tint: color,
+    alpha: 0.7,
+  });
+  world.screenShake = Math.max(world.screenShake, 5);
+}
+
+export function explosion(world: World, x: number, y: number, size: 'sm' | 'md' | 'lg'): void {
+  const a = world.atlas.particles;
+  const e = world.atlas.explosions;
+  const ringTex = size === 'sm' ? e[0] : size === 'md' ? e[1] : e[2];
+  // Big ring sprite
+  spawnParticle(world, world.layers.effectsOver, {
+    texture: ringTex,
+    x, y,
+    vx: 0, vy: 0,
+    life: size === 'sm' ? 0.35 : size === 'md' ? 0.5 : 0.7,
+    scale: 0.7,
+    endScale: size === 'sm' ? 1.2 : size === 'md' ? 1.6 : 2.0,
+    blend: 'add',
+    alpha: 1,
+  });
+  // Bright flash
+  spawnParticle(world, world.layers.effectsOver, {
+    texture: a.softWhite,
+    x, y,
+    vx: 0, vy: 0,
+    life: 0.18,
+    scale: size === 'sm' ? 2 : size === 'md' ? 3 : 5,
+    endScale: 0.2,
+    blend: 'add',
+  });
+  // Sparks
+  const n = size === 'sm' ? 8 : size === 'md' ? 16 : 28;
+  for (let i = 0; i < n; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 80 + Math.random() * (size === 'lg' ? 280 : size === 'md' ? 200 : 140);
+    spawnParticle(world, world.layers.effectsOver, {
+      texture: a.hardOrange,
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 0.45 + Math.random() * 0.35,
+      scale: 1.1,
+      endScale: 0.4,
+      blend: 'add',
+      tint: 0xffaa66,
+      drag: 2.5,
+    });
+  }
+  // Smoke
+  const smokeCount = size === 'sm' ? 4 : size === 'md' ? 8 : 14;
+  for (let i = 0; i < smokeCount; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 30 + Math.random() * 90;
+    spawnParticle(world, world.layers.effectsOver, {
+      texture: a.softOrange,
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 20,
+      life: 0.8 + Math.random() * 0.6,
+      scale: 1.1,
+      endScale: 1.8,
+      blend: 'add',
+      tint: 0x553311,
+      alpha: 0.6,
+      drag: 1.5,
+    });
+  }
+  world.audio.play(size === 'lg' ? 'boom_lg' : size === 'md' ? 'boom_md' : 'boom_sm', { volume: size === 'lg' ? 0.4 : 0.25 });
+  // Screen shake
+  world.screenShake = Math.max(world.screenShake, size === 'sm' ? 4 : size === 'md' ? 8 : 18);
+}
+
+export function bombFlash(world: World): void {
+  const a = world.atlas.particles;
+  spawnParticle(world, world.layers.effectsOver, {
+    texture: a.softWhite,
+    x: world.player.x,
+    y: world.player.y,
+    vx: 0, vy: 0,
+    life: 0.6,
+    scale: 4,
+    endScale: 40,
+    blend: 'add',
+    alpha: 0.85,
+  });
+  world.screenShake = Math.max(world.screenShake, 20);
+  world.audio.play('bomb', { volume: 0.5 });
+}
+
+export function pickupFlash(world: World, x: number, y: number, color: number): void {
+  const a = world.atlas.particles;
+  spawnParticle(world, world.layers.effectsOver, {
+    texture: a.softWhite,
+    x, y,
+    vx: 0, vy: 0,
+    life: 0.3,
+    scale: 1,
+    endScale: 2.5,
+    blend: 'add',
+    tint: color,
+    alpha: 0.8,
+  });
+  world.audio.play('pickup', { volume: 0.2 });
+}

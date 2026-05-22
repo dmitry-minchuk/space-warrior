@@ -167,6 +167,43 @@ Boss HP uses tiered multipliers: 2.0x for bosses 1-5, 2.25x for bosses 6-12, 2.5
 
 Phase counts per boss: bosses 1-5 use 2-3 phases (teaching their signature attack, then adding a second angle or faster rhythm), bosses 6-12 use 3 phases (base / mixed / desperation), bosses 13-19 use 4 phases (armor break, rhythm shift, multi-pattern, overload), and boss 20 is a 4-form fight (outer shell → exposed core → transformed → last stand) with visual transformation cues — colour shifts, scale pulses, and screen flashes at each transition.
 
+#### Destructible Parts
+
+Every boss exposes 2-4 destructible modules. Damage to a projectile is routed: if the projectile lands inside a blocking part (S/A) all damage goes there; otherwise it splits 60/40 between the closest optional part and the hull; if no part is in range, the hull eats it all.
+
+| Slot | Type | Effect on break |
+|---|---|---|
+| **T** | Turret pod | Disables one attack stream (cannon, fan, sweep) |
+| **S** | Shield generator | While alive: hull takes 0.7× damage. On break: 4 s open-core window with 1.5× hull damage |
+| **A** | Armor plate | Blocks hull damage in its zone. On break: hull permanently takes 1.5× damage |
+| **E** | Engine module | Boss freezes in place — weaving stops |
+| **M** | Missile pod | Disables a missile salvo or a gravity-pull mechanic |
+| **P** | Sensor / scope | Disables aimed/predictive attacks; boss falls back to blind fire |
+| **H** | Hatch / spawner | Stops minion production immediately |
+
+| Level | Boss | Parts |
+|---:|---|---|
+| 1 | Patrol Cruiser | T forward battery, E rear thruster |
+| 2 | Asteroid Hauler | A towed asteroid, T launcher pair |
+| 3 | Cyber Crab | T left claw, T right claw (both → forced desperation phase) |
+| 4 | Lunar Sentinel | S dorsal shield, T chin gun |
+| 5 | Hive Carrier | H drone hatch, T deck gun |
+| 6 | Wreck Behemoth | T×2 cannons, A damaged plate |
+| 7 | Mine Mother | T drill core, H×2 mine launchers |
+| 8 | Ghost Sniper | P scope, T×2 sub-cannons |
+| 9 | Kamikaze Queen | H×2 egg pods, T forward fan |
+| 10 | Saturn Dreadnought | T spinal lance, M×2 missile pods |
+| 11 | Phantom | S phase generator, T forward emitter |
+| 12 | Storm Sphere | P lightning emitter, S energy shell, T tesla aimer |
+| 13 | Blazing Citadel | T×2 mortar bays, A front armor, E engine ring |
+| 14 | Gravity Lord | M gravity well, T×2 platforms, A central core |
+| 15 | Hive Mind | H spawner, P neural beam, T spore launcher, A carapace |
+| 16 | Event Horizon | M gravity emitter, T×2 cannons, S event shield |
+| 17 | Factory Core | H factory hatch, T×2 corners, A belly armor |
+| 18 | Imperial Flagship | M×2 missile pods, T turret cluster mast, E engine bank |
+| 19 | Citadel Guardian | S citadel shield, T×2 perimeter pairs, P central eye |
+| 20 | The Architect | Form 0: A×4 quadrant plates. Form 1: P×2 ring emitters. Form 2: T spiral + H cradle. Form 3: no parts (exposed core) |
+
 | Level | Boss | HP | Radius | Score |
 |---:|---|---:|---:|---:|
 | 1 | Patrol Cruiser | 1300 | 70 | 2000 |
@@ -271,7 +308,7 @@ This roadmap is focused on balance quality rather than raw feature count. The go
 | 6. Add Multi-Pattern Enemy Variants | Done, first pass | Added Scout Ambusher, Bomber Captain, Interceptor Ace, Drone Cross, Drone Lane, Turret Crossfire, Heavy Breaker, Heavy Suppressor, and Tesla Weaver. |
 | 7. Improve Attack Angles and Patterns | Done, first pass | Added side pincers, diagonal lanes, rear shots, mine arcs, bomb fans, crossfire, plasma fan pressure, alternating lanes, and slow suppressive waves. |
 | 8. Rebuild Bosses Around Phases | Done, first pass | All 20 bosses now have explicit phase scripts — 1-5 stay 2-3 phases (teaching), 6-12 go to 3 phases, 13-19 escalate to 4 phases, and the Architect is a 4-form fight with visual transformation cues. Boss parts/destructible systems remain future work. |
-| 9. Add Boss Parts and Transformations | Not started | Destructible boss systems and transformation visuals are not implemented yet. |
+| 9. Add Boss Parts and Transformations | Done, first pass | Every boss now exposes 2-4 destructible modules (7 slot types: T/S/A/E/M/P/H) that gate specific attacks. Damage is routed: blocking parts (S/A) absorb 100%, optional parts (T/E/M/P/H) take 60% with 40% bleeding to the hull. Shields halve hull damage while alive and open a 4 s core-burst window on break. The Architect swaps its parts roster per form. |
 | 10. Smooth Level Difficulty | Done, first pass | All 20 level scripts now introduce tactical variants progressively, with reduced late HP spikes. |
 | 11. Manage Screen Readability | Partial | Background clutter and projectile interception clarity were improved, but combat readability still needs playtest tuning. |
 | 12. Define Playtest Targets | Done | Target metrics are documented below; actual telemetry collection is still part of item 1. |

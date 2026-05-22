@@ -209,79 +209,104 @@ function lightDot(g: Graphics, x: number, y: number, r: number, color: number): 
 }
 
 // =========================================================================
-// BOSS 1 — Patrol Cruiser. Black-and-crimson military frigate.
+// BOSS 1 — Patrol Cruiser. Imperial Star Destroyer wedge silhouette.
 // =========================================================================
 export function drawBoss01PatrolCruiser(root: Container, S = 1): void {
-  const p: Pal = { d: 0x10151c, m: 0x2a3038, l: 0x5a6068, a: 0xff4d3d };
-  const eng = 0xff7733;
-  softGlow(root, -28 * S, 56 * S, 16 * S, eng, 8);
-  softGlow(root, 0, 60 * S, 22 * S, eng, 10);
-  softGlow(root, 28 * S, 56 * S, 16 * S, eng, 8);
+  const p: Pal = { d: 0x12161e, m: 0x36404c, l: 0x7c8898, a: 0xff5544 };
+  const eng = 0x66c4ff;
+  // 3 large engines aft, classic blue exhaust
+  softGlow(root, -32 * S, 56 * S, 18 * S, eng, 9);
+  softGlow(root, 0, 60 * S, 24 * S, eng, 11);
+  softGlow(root, 32 * S, 56 * S, 18 * S, eng, 9);
+  // Bridge tower glow
+  softGlow(root, 0, -38 * S, 12 * S, 0xfff0a0, 7);
 
   const g = new Graphics();
-  // Long dart-shaped fuselage
-  const hull = mirrorPoly([0, -72 * S, 10 * S, -58 * S, 14 * S, -36 * S, 20 * S, -14 * S, 30 * S, 6 * S, 40 * S, 28 * S, 30 * S, 50 * S, 14 * S, 56 * S]);
+  // Triangular wedge — narrow bow widening to a flat stern. Pulled from
+  // Imperial-class proportions: long axis vertical, ~3:1 length-to-width.
+  const hull = mirrorPoly([
+    0, -78 * S, 6 * S, -68 * S, 12 * S, -48 * S, 22 * S, -20 * S,
+    34 * S, 14 * S, 44 * S, 40 * S, 48 * S, 56 * S, 26 * S, 60 * S,
+  ]);
   plate(g, hull, p);
-  // Forward-swept wings (predator)
-  plate(g, [-22 * S, 0, -58 * S, 22 * S, -62 * S, 38 * S, -42 * S, 38 * S, -26 * S, 22 * S], p);
-  plate(g, [22 * S, 0, 58 * S, 22 * S, 62 * S, 38 * S, 42 * S, 38 * S, 26 * S, 22 * S], p);
-  // Spine accent — red emissive line
-  g.poly([-3 * S, -64 * S, 3 * S, -64 * S, 5 * S, 52 * S, -5 * S, 52 * S]).fill({ color: p.a, alpha: 0.65 });
-  g.poly([-1 * S, -66 * S, 1 * S, -66 * S, 2 * S, 50 * S, -2 * S, 50 * S]).fill(0xffffff);
-  rivets(g, -22 * S, -10 * S, 22 * S, -10 * S, 7);
-  rivets(g, -34 * S, 12 * S, 34 * S, 12 * S, 9);
-  rivets(g, -44 * S, 30 * S, 44 * S, 30 * S, 11);
+  // Layered upper hull (stepped command deck terrace)
+  plate(g, mirrorPoly([
+    0, -68 * S, 5 * S, -58 * S, 10 * S, -40 * S, 18 * S, -16 * S,
+    28 * S, 10 * S, 36 * S, 34 * S, 40 * S, 48 * S, 22 * S, 50 * S,
+  ]), { d: p.d, m: 0x42505e, l: 0x8a98a8, a: p.a }, { hi: 0.85 });
+  // Mid trench — long groove down the spine where dorsal modules sit
+  g.rect(-3 * S, -60 * S, 6 * S, 100 * S).fill({ color: 0x10141a, alpha: 0.9 });
+  g.rect(-3 * S, -60 * S, 6 * S, 100 * S).stroke({ color: p.l, width: 0.8, alpha: 0.5 });
+  // Cross-deck rivet bands at major hull segment seams
+  rivets(g, -16 * S, -30 * S, 16 * S, -30 * S, 7);
+  rivets(g, -28 * S, -2 * S, 28 * S, -2 * S, 11);
+  rivets(g, -42 * S, 28 * S, 42 * S, 28 * S, 13);
+  rivets(g, -46 * S, 50 * S, 46 * S, 50 * S, 13);
+  // Surface panel detail — diamond plating sections along the hull
+  for (let i = 0; i < 4; i++) {
+    const yy = -40 * S + i * 18 * S;
+    g.rect(-22 * S, yy, 16 * S, 4 * S).stroke({ color: p.d, width: 0.7, alpha: 0.7 });
+    g.rect(6 * S, yy, 16 * S, 4 * S).stroke({ color: p.d, width: 0.7, alpha: 0.7 });
+  }
   root.addChild(g);
 
-  // Bridge / cockpit
+  // Command bridge tower — the iconic Star-Destroyer rear superstructure.
+  // Two-tier: lower trapezoid + upper bridge box + two shield-gen domes.
   const cp = new Graphics();
-  plate(cp, [-9 * S, -34 * S, -7 * S, -44 * S, 7 * S, -44 * S, 9 * S, -34 * S], { d: p.d, m: 0x3a4250, l: 0x6a7280, a: p.a });
-  cp.ellipse(0, -38 * S, 5 * S, 3 * S).fill(p.a);
-  cp.ellipse(0, -39 * S, 2.5 * S, 1.5 * S).fill(0xffffff);
-  antennaArr(cp, 0, -44 * S, 14 * S, p.a);
-  // Side small antennas
-  antennaArr(cp, -8 * S, -32 * S, 10 * S, 0xfff066);
-  antennaArr(cp, 8 * S, -32 * S, 10 * S, 0xfff066);
+  // Tower lower tier
+  plate(cp, [-14 * S, -16 * S, -10 * S, -30 * S, 10 * S, -30 * S, 14 * S, -16 * S], { d: p.d, m: 0x46525e, l: 0x9aa6b4, a: p.a }, { hi: 0.85 });
+  // Tower middle tier
+  plate(cp, [-11 * S, -30 * S, -8 * S, -42 * S, 8 * S, -42 * S, 11 * S, -30 * S], { d: p.d, m: 0x525e6a, l: 0xacb8c4, a: p.a }, { hi: 0.85 });
+  // Bridge window strip — bright row of windows facing forward
+  cp.rect(-7 * S, -41 * S, 14 * S, 2.5 * S).fill(0xfff0a0);
+  cp.rect(-7 * S, -41 * S, 14 * S, 2.5 * S).stroke({ color: 0xffffff, width: 0.6, alpha: 0.95 });
+  for (let i = -3; i <= 3; i++) cp.rect(i * 1.6 * S - 0.3, -41 * S, 0.5 * S, 2.5 * S).fill(p.d);
+  // Twin shield-generator domes flanking the bridge
+  bulb(cp, -16 * S, -34 * S, 5 * S, 4 * S, { d: p.d, m: 0x5a6878, l: 0xb6c2d0, a: p.a }, { specular: true });
+  bulb(cp, 16 * S, -34 * S, 5 * S, 4 * S, { d: p.d, m: 0x5a6878, l: 0xb6c2d0, a: p.a }, { specular: true });
+  // Tall command antenna mast
+  antennaArr(cp, 0, -42 * S, 18 * S, 0xfff066);
+  // Side comm whiskers
+  antennaArr(cp, -12 * S, -30 * S, 10 * S, p.a);
+  antennaArr(cp, 12 * S, -30 * S, 10 * S, p.a);
   root.addChild(cp);
 
-  // Twin chin cannons
+  // Heavy bow lance + twin chin cannons (forward armament)
   const cn = new Graphics();
-  cannon(cn, -11 * S, -56 * S, 20 * S, 5 * S, { d: 0x10080a, m: 0x3a2025, l: 0x6a3a40, a: p.a });
-  cannon(cn, 11 * S, -56 * S, 20 * S, 5 * S, { d: 0x10080a, m: 0x3a2025, l: 0x6a3a40, a: p.a });
-  // Wing-tip turret pods
-  eyeCannon(cn, -54 * S, 30 * S, 4 * S, p.a);
-  eyeCannon(cn, 54 * S, 30 * S, 4 * S, p.a);
+  cannon(cn, 0, -64 * S, 18 * S, 6 * S, { d: 0x10080a, m: 0x3a2025, l: 0x7a3a40, a: p.a });
+  cannon(cn, -10 * S, -54 * S, 14 * S, 4 * S, { d: 0x10080a, m: 0x3a2025, l: 0x6a3a40, a: p.a });
+  cannon(cn, 10 * S, -54 * S, 14 * S, 4 * S, { d: 0x10080a, m: 0x3a2025, l: 0x6a3a40, a: p.a });
+  // Dorsal turret battery — 4 ball-mount eye cannons along the spine
+  eyeCannon(cn, -22 * S, 8 * S, 3.5 * S, p.a);
+  eyeCannon(cn, 22 * S, 8 * S, 3.5 * S, p.a);
+  eyeCannon(cn, -28 * S, 30 * S, 3.5 * S, p.a);
+  eyeCannon(cn, 28 * S, 30 * S, 3.5 * S, p.a);
   root.addChild(cn);
 
-  // Engines
+  // Engine cluster — 3 large vertical exhaust ports, Imperial style.
   const en = new Graphics();
-  engineBell(en, -28 * S, 48 * S, 12 * S, 14 * S, eng, p.d);
-  engineBell(en, 0, 50 * S, 14 * S, 14 * S, eng, p.d);
-  engineBell(en, 28 * S, 48 * S, 12 * S, 14 * S, eng, p.d);
+  engineBell(en, -32 * S, 48 * S, 16 * S, 16 * S, eng, p.d);
+  engineBell(en, 0, 50 * S, 18 * S, 16 * S, eng, p.d);
+  engineBell(en, 32 * S, 48 * S, 16 * S, 16 * S, eng, p.d);
   root.addChild(en);
 
-  // Hazard chevrons + ID stencil "01"
+  // Hull stencils + nav lights — Imperial squadron livery.
   const dec = new Graphics();
-  for (let i = 0; i < 3; i++) {
-    const o = i * 5;
-    dec.poly([-58 * S + o, 32 * S, -53 * S + o, 32 * S, -50 * S + o, 38 * S, -55 * S + o, 38 * S]).fill({ color: 0xfff066, alpha: 0.65 });
-    dec.poly([50 * S + o, 32 * S, 55 * S + o, 32 * S, 58 * S + o, 38 * S, 53 * S + o, 38 * S]).fill({ color: 0xfff066, alpha: 0.65 });
-  }
-  // "01" stencil on belly
-  dec.rect(-10 * S, 18 * S, 6 * S, 1.6 * S).fill({ color: 0xc4c4cc, alpha: 0.7 });
-  dec.rect(-10 * S, 18 * S, 1.6 * S, 6 * S).fill({ color: 0xc4c4cc, alpha: 0.7 });
-  dec.rect(-10 * S, 22.5 * S, 6 * S, 1.6 * S).fill({ color: 0xc4c4cc, alpha: 0.7 });
-  dec.rect(-5.5 * S, 18 * S, 1.6 * S, 6 * S).fill({ color: 0xc4c4cc, alpha: 0.7 });
-  dec.rect(4 * S, 18 * S, 1.6 * S, 6 * S).fill({ color: 0xc4c4cc, alpha: 0.7 });
-  dec.rect(4 * S, 18 * S, 4 * S, 1.6 * S).fill({ color: 0xc4c4cc, alpha: 0.7 });
+  // Red command stripes either side of the spine
+  dec.rect(-30 * S, -10 * S, 4 * S, 50 * S).fill({ color: p.a, alpha: 0.55 });
+  dec.rect(26 * S, -10 * S, 4 * S, 50 * S).fill({ color: p.a, alpha: 0.55 });
+  // "01" stencil on starboard panel
+  dec.rect(10 * S, 18 * S, 5 * S, 1.4 * S).fill({ color: 0xc4c4cc, alpha: 0.8 });
+  dec.rect(10 * S, 22 * S, 5 * S, 1.4 * S).fill({ color: 0xc4c4cc, alpha: 0.8 });
+  dec.rect(10 * S, 18 * S, 1.4 * S, 5 * S).fill({ color: 0xc4c4cc, alpha: 0.8 });
+  dec.rect(13.6 * S, 18 * S, 1.4 * S, 5 * S).fill({ color: 0xc4c4cc, alpha: 0.8 });
   root.addChild(dec);
 
-  // Nav lights
   const lt = new Graphics();
-  lightDot(lt, -54 * S, 36 * S, 1.4, 0xff4040);
-  lightDot(lt, 54 * S, 36 * S, 1.4, 0x40ff40);
-  lightDot(lt, -28 * S, 4 * S, 1.4, p.a);
-  lightDot(lt, 28 * S, 4 * S, 1.4, p.a);
+  lightDot(lt, -48 * S, 54 * S, 1.6, 0xff4040);
+  lightDot(lt, 48 * S, 54 * S, 1.6, 0x40ff40);
+  lightDot(lt, -16 * S, -34 * S, 1.2, 0x66c4ff);
+  lightDot(lt, 16 * S, -34 * S, 1.2, 0x66c4ff);
   root.addChild(lt);
 }
 
@@ -295,30 +320,52 @@ export function drawBoss02AsteroidHauler(root: Container, S = 1): void {
   softGlow(root, 0, 60 * S, 20 * S, eng, 10);
   softGlow(root, 32 * S, 56 * S, 16 * S, eng, 8);
 
-  // Towed asteroid in front
-  const ast = new Graphics();
-  ast.circle(0, -78 * S, 18 * S).fill(0x2a1d10);
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    ast.circle(Math.cos(a) * 14 * S, -78 * S + Math.sin(a) * 14 * S, 4 * S).fill(0x4a3a20);
+  // Heavy tow cables stretching from the corpus to the asteroid — drawn
+  // first so they sit behind the hull / claws. Mass-Effect mining-barge feel.
+  const cab = new Graphics();
+  for (const off of [-14, -6, 6, 14]) {
+    cab.moveTo(off * S, -54 * S).lineTo(off * S * 0.6, -82 * S).stroke({ color: 0x10080a, width: 2.4 });
+    cab.moveTo(off * S, -54 * S).lineTo(off * S * 0.6, -82 * S).stroke({ color: 0x6a6a78, width: 1.2 });
   }
-  ast.circle(-5 * S, -84 * S, 6 * S).fill(0x6a4f2a);
-  // Mineral veins
-  ast.moveTo(-12 * S, -82 * S).lineTo(8 * S, -75 * S).stroke({ color: 0xffaa44, width: 1.4, alpha: 0.7 });
-  ast.moveTo(-6 * S, -88 * S).lineTo(12 * S, -73 * S).stroke({ color: 0xffaa44, width: 1, alpha: 0.5 });
-  ast.circle(-3 * S, -78 * S, 1.4).fill(0xfff066);
-  ast.circle(7 * S, -76 * S, 1.2).fill(0xfff066);
+  root.addChild(cab);
+
+  // Towed asteroid — chunkier silhouette with embedded ore veins.
+  const ast = new Graphics();
+  ast.circle(0, -80 * S, 22 * S).fill(0x2a1d10);
+  // Surface boulders
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2;
+    const r = (15 + (i % 3) * 3) * S;
+    ast.circle(Math.cos(a) * r, -80 * S + Math.sin(a) * r, 5 * S).fill(0x4a3a20);
+  }
+  ast.circle(-7 * S, -88 * S, 7 * S).fill(0x6a4f2a);
+  ast.circle(8 * S, -74 * S, 4 * S).fill(0x6a4f2a);
+  // Bright eezo / ore veins
+  ast.moveTo(-15 * S, -86 * S).lineTo(12 * S, -76 * S).stroke({ color: 0xffaa44, width: 1.6, alpha: 0.85 });
+  ast.moveTo(-8 * S, -92 * S).lineTo(14 * S, -74 * S).stroke({ color: 0xffaa44, width: 1.1, alpha: 0.65 });
+  ast.moveTo(-2 * S, -94 * S).lineTo(6 * S, -68 * S).stroke({ color: 0xffd166, width: 0.9, alpha: 0.55 });
+  ast.circle(-4 * S, -80 * S, 1.6).fill(0xfff066);
+  ast.circle(8 * S, -78 * S, 1.4).fill(0xfff066);
+  ast.circle(-12 * S, -76 * S, 1).fill(0xff8844);
   root.addChild(ast);
 
-  // Clamp arms (grasping the asteroid)
+  // Heavy industrial clamp arms grasping the asteroid (with hydraulic joints).
   const cl = new Graphics();
   for (const sign of [-1, 1]) {
-    cl.poly([sign * 18 * S, -56 * S, sign * 38 * S, -72 * S, sign * 32 * S, -76 * S, sign * 12 * S, -60 * S]).fill(p.d);
-    cl.poly([sign * 20 * S, -54 * S, sign * 36 * S, -70 * S, sign * 30 * S, -74 * S, sign * 14 * S, -58 * S]).fill(p.m);
-    cl.poly([sign * 22 * S, -54 * S, sign * 32 * S, -68 * S, sign * 28 * S, -72 * S]).fill(p.l);
-    // Clamp tip
-    cl.circle(sign * 34 * S, -72 * S, 3 * S).fill(p.a);
-    cl.circle(sign * 34 * S, -72 * S, 1.5 * S).fill(0xffffff);
+    // Outer arm shadow
+    cl.poly([sign * 16 * S, -54 * S, sign * 42 * S, -76 * S, sign * 34 * S, -82 * S, sign * 10 * S, -58 * S]).fill(p.d);
+    // Arm mid-tone
+    cl.poly([sign * 18 * S, -52 * S, sign * 40 * S, -74 * S, sign * 32 * S, -80 * S, sign * 12 * S, -56 * S]).fill(p.m);
+    // Arm highlight
+    cl.poly([sign * 20 * S, -52 * S, sign * 36 * S, -72 * S, sign * 30 * S, -78 * S]).fill(p.l);
+    // Hydraulic joint (mid-arm)
+    cl.circle(sign * 26 * S, -64 * S, 3.5 * S).fill(p.d);
+    cl.circle(sign * 26 * S, -64 * S, 2.6 * S).fill(p.l);
+    cl.circle(sign * 26 * S, -64 * S, 1.2 * S).fill(p.a);
+    // Pincer tip — bright orange clamp
+    cl.poly([sign * 38 * S, -78 * S, sign * 44 * S, -76 * S, sign * 38 * S, -72 * S]).fill(p.a);
+    cl.poly([sign * 34 * S, -82 * S, sign * 42 * S, -82 * S, sign * 38 * S, -78 * S]).fill(p.a);
+    cl.circle(sign * 38 * S, -78 * S, 1.4 * S).fill(0xffffff);
   }
   root.addChild(cl);
 
@@ -426,6 +473,13 @@ export function drawBoss03CyberCrab(root: Container, S = 1): void {
     band.circle(i * 5 * S, -8 * S, 1.6 * S).fill(teal.a);
     band.circle(i * 5 * S, -8 * S, 0.8 * S).fill(0xffffff);
   }
+  // Cylon-style red scanner slit across the carapace dome (above the eyes).
+  band.rect(-24 * S, -36 * S, 48 * S, 3.5 * S).fill(p.d);
+  band.rect(-22 * S, -35 * S, 44 * S, 1.6 * S).fill({ color: 0xff2222, alpha: 0.95 });
+  // Bright moving cell — implied scanner pulse
+  band.rect(-2 * S, -35 * S, 4 * S, 1.6 * S).fill(0xffffff);
+  band.rect(-12 * S, -35 * S, 2 * S, 1.6 * S).fill({ color: 0xffd166, alpha: 0.85 });
+  band.rect(8 * S, -35 * S, 2 * S, 1.6 * S).fill({ color: 0xffd166, alpha: 0.85 });
   root.addChild(band);
 
   // Eye cluster (compound, 5 eyes)
@@ -483,83 +537,95 @@ export function drawBoss03CyberCrab(root: Container, S = 1): void {
 // BOSS 4 — Lunar Sentinel. Sphere body with massive mechanical iris.
 // =========================================================================
 export function drawBoss04LunarSentinel(root: Container, S = 1): void {
-  const p: Pal = { d: 0x1d150a, m: 0x4a3a1d, l: 0xa67a3a, a: 0xffae3d };
-  softGlow(root, 0, -8 * S, 36 * S, p.a, 12);
-
-  // Stabilizer wings (4)
-  const wings = new Graphics();
-  for (const ang of [Math.PI / 4, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75]) {
-    const sx = Math.cos(ang) * 38 * S;
-    const sy = Math.sin(ang) * 38 * S;
-    const ex = Math.cos(ang) * 60 * S;
-    const ey = Math.sin(ang) * 60 * S;
-    const ortho = { x: -Math.sin(ang), y: Math.cos(ang) };
-    wingFin(wings, [
-      sx, sy,
-      ex + ortho.x * 14 * S, ey + ortho.y * 14 * S,
-      ex, ey,
-      ex - ortho.x * 14 * S, ey - ortho.y * 14 * S,
-    ], p, 0.92);
-    // Pylon connecting wing to sphere
-    wings.moveTo(sx, sy).lineTo(ex, ey).stroke({ color: p.d, width: 4 * S });
-    wings.moveTo(sx, sy).lineTo(ex, ey).stroke({ color: p.l, width: 1.5 * S });
-  }
-  root.addChild(wings);
+  // Steel-grey Death-Star palette with bright orange superlaser glow.
+  const p: Pal = { d: 0x14181c, m: 0x4a5260, l: 0x8a96a4, a: 0xff8030 };
+  softGlow(root, 0, -8 * S, 30 * S, p.a, 10);
+  softGlow(root, 0, 0, 56 * S, 0x202428, 4);
 
   const g = new Graphics();
-  // Sphere body
-  const R = 42 * S;
+  // Spherical battle-station body. Two-tone shading mimics the iconic
+  // Death Star half-shadow look.
+  const R = 46 * S;
   g.circle(0, 0, R + 4).fill(p.d);
   g.circle(0, 0, R).fill(p.m);
-  g.circle(-R * 0.3, -R * 0.3, R * 0.78).fill(p.l);
-  g.circle(0, 0, R).stroke({ color: p.a, width: 2 });
-  // Rune glyphs around equator
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
-    runeGlyph(g, Math.cos(a) * R * 0.78, Math.sin(a) * R * 0.78, 3.5 * S, p.a);
+  // Lit hemisphere (top-left)
+  g.circle(-R * 0.25, -R * 0.25, R * 0.82).fill(p.l);
+  // Dark hemisphere indicator (bottom-right cast)
+  g.ellipse(R * 0.35, R * 0.35, R * 0.55, R * 0.55).fill({ color: 0x14181c, alpha: 0.45 });
+  g.circle(0, 0, R).stroke({ color: p.d, width: 2 });
+  // Surface panel grid — concentric rings + radial spokes give the hull
+  // a "trench-and-plate" look.
+  for (let i = 1; i < 5; i++) {
+    g.ellipse(0, 0, R * (i / 5) * 1.6, R * (i / 5) * 0.55).stroke({ color: p.d, width: 0.7, alpha: 0.6 });
   }
-  // Equator ring
-  g.ellipse(0, 0, R * 0.85, R * 0.22).stroke({ color: p.d, width: 2, alpha: 0.7 });
+  // Equatorial trench (classic Death-Star feature)
+  g.rect(-R, -2 * S, R * 2, 4 * S).fill({ color: 0x0a0c10, alpha: 0.95 });
+  g.rect(-R, -2 * S, R * 2, 4 * S).stroke({ color: p.l, width: 0.6, alpha: 0.6 });
+  // Trench tower bumps (regular intervals)
+  for (let i = -5; i <= 5; i++) {
+    g.rect(i * 7 * S - 1, -3 * S, 2, 6 * S).fill(p.d);
+  }
+  // Surface details — panel rectangles dotted across the visible hemisphere
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2;
+    const rr = R * (0.45 + (i % 3) * 0.18);
+    const px = Math.cos(a) * rr;
+    const py = Math.sin(a) * rr;
+    if (py < -4 * S || py > 4 * S) {
+      g.rect(px - 3 * S, py - 2 * S, 6 * S, 4 * S).stroke({ color: p.d, width: 0.6, alpha: 0.55 });
+    }
+  }
   root.addChild(g);
 
-  // Mechanical iris / huge eye
-  const eye = new Graphics();
-  // Eye socket
-  eye.circle(0, -8 * S, 22 * S).fill(0x000000);
-  eye.circle(0, -8 * S, 22 * S).stroke({ color: p.d, width: 3 });
-  // Iris shutters (radial petals)
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * Math.PI * 2;
-    eye.poly([
-      Math.cos(a) * 22 * S, -8 * S + Math.sin(a) * 22 * S,
-      Math.cos(a + 0.4) * 22 * S, -8 * S + Math.sin(a + 0.4) * 22 * S,
-      Math.cos(a + 0.2) * 12 * S, -8 * S + Math.sin(a + 0.2) * 12 * S,
-    ]).fill({ color: 0x4a2a10, alpha: 0.95 });
+  // Superlaser dish — large concave bowl in the upper hemisphere.
+  const dish = new Graphics();
+  // Outer recessed rim
+  dish.circle(0, -10 * S, 24 * S).fill(0x0a0c10);
+  dish.circle(0, -10 * S, 24 * S).stroke({ color: p.d, width: 2.4 });
+  // Radial dish vanes
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    dish.poly([
+      Math.cos(a) * 23 * S, -10 * S + Math.sin(a) * 23 * S,
+      Math.cos(a + 0.26) * 23 * S, -10 * S + Math.sin(a + 0.26) * 23 * S,
+      Math.cos(a + 0.13) * 11 * S, -10 * S + Math.sin(a + 0.13) * 11 * S,
+    ]).fill({ color: 0x3a4250, alpha: 0.95 });
   }
-  // Iris glow
-  eye.circle(0, -8 * S, 13 * S).fill(p.a);
-  eye.circle(0, -8 * S, 13 * S).stroke({ color: 0xfff066, width: 1, alpha: 0.95 });
+  // Charging emitter core — bright orange
+  dish.circle(0, -10 * S, 11 * S).fill({ color: p.a, alpha: 0.95 });
+  dish.circle(0, -10 * S, 11 * S).stroke({ color: 0xfff066, width: 1.2, alpha: 0.95 });
+  // 8 focusing nodes around the core
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + 0.2;
+    const px = Math.cos(a) * 8 * S;
+    const py = -10 * S + Math.sin(a) * 8 * S;
+    dish.circle(px, py, 1.4 * S).fill(0xfff066);
+    dish.circle(px, py, 0.7 * S).fill(0xffffff);
+  }
   // Pupil
-  eye.circle(0, -8 * S, 7 * S).fill(0xfff066);
-  eye.circle(0, -8 * S, 4 * S).fill(0xffffff);
-  // Crosshair
-  eye.moveTo(-15 * S, -8 * S).lineTo(-9 * S, -8 * S).stroke({ color: 0xffffff, width: 1, alpha: 0.6 });
-  eye.moveTo(9 * S, -8 * S).lineTo(15 * S, -8 * S).stroke({ color: 0xffffff, width: 1, alpha: 0.6 });
-  root.addChild(eye);
+  dish.circle(0, -10 * S, 4 * S).fill(0xfff066);
+  dish.circle(0, -10 * S, 2 * S).fill(0xffffff);
+  root.addChild(dish);
 
-  // Side cannons
+  // Side support cannons (turbolaser turrets along equator)
   const cn = new Graphics();
-  cannon(cn, -34 * S, 14 * S, 14 * S, 5 * S, { d: 0x1a1208, m: 0x5a3a18, l: 0x9c6e2a, a: p.a });
-  cannon(cn, 34 * S, 14 * S, 14 * S, 5 * S, { d: 0x1a1208, m: 0x5a3a18, l: 0x9c6e2a, a: p.a });
+  cannon(cn, -36 * S, 12 * S, 14 * S, 5 * S, { d: 0x10141a, m: 0x3a4250, l: 0x6a7280, a: p.a });
+  cannon(cn, 36 * S, 12 * S, 14 * S, 5 * S, { d: 0x10141a, m: 0x3a4250, l: 0x6a7280, a: p.a });
   // Lower mini-turrets
-  eyeCannon(cn, -18 * S, 30 * S, 4 * S, p.a);
-  eyeCannon(cn, 18 * S, 30 * S, 4 * S, p.a);
+  eyeCannon(cn, -22 * S, 30 * S, 4 * S, p.a);
+  eyeCannon(cn, 22 * S, 30 * S, 4 * S, p.a);
+  eyeCannon(cn, 0, 36 * S, 4 * S, p.a);
   root.addChild(cn);
+
+  // Communication antenna mast on top of dish
+  const ant = new Graphics();
+  antennaArr(ant, 0, -34 * S, 12 * S, p.a);
+  root.addChild(ant);
 
   // Engines underneath
   const en = new Graphics();
-  engineBell(en, -22 * S, 42 * S, 11 * S, 12 * S, p.a, p.d);
-  engineBell(en, 22 * S, 42 * S, 11 * S, 12 * S, p.a, p.d);
+  engineBell(en, -22 * S, 44 * S, 11 * S, 12 * S, 0x66c4ff, p.d);
+  engineBell(en, 22 * S, 44 * S, 11 * S, 12 * S, 0x66c4ff, p.d);
   root.addChild(en);
 }
 
@@ -567,80 +633,117 @@ export function drawBoss04LunarSentinel(root: Container, S = 1): void {
 // BOSS 5 — Hive Carrier. Long flat carrier with hangar bays + bridge tower.
 // =========================================================================
 export function drawBoss05HiveCarrier(root: Container, S = 1): void {
-  const p: Pal = { d: 0x182218, m: 0x2e4a2a, l: 0x6a9c4a, a: 0xffaa5a };
+  // Independence-Day-style mothership: massive flying disc, ringed hangar
+  // belt, central command dome with city-lights underneath.
+  const p: Pal = { d: 0x10160c, m: 0x2a3e22, l: 0x5a7e42, a: 0xfff066 };
   const acc2 = 0x66ddff;
-  const eng = 0xffae44;
+  const dome = 0x88c266;
 
-  softGlow(root, -50 * S, 56 * S, 14 * S, eng, 7);
-  softGlow(root, -16 * S, 60 * S, 16 * S, eng, 8);
-  softGlow(root, 16 * S, 60 * S, 16 * S, eng, 8);
-  softGlow(root, 50 * S, 56 * S, 14 * S, eng, 7);
+  // Massive amber underglow from the city-light belt
+  softGlow(root, 0, 18 * S, 60 * S, 0xffaa55, 12);
+  softGlow(root, 0, -28 * S, 32 * S, dome, 9);
 
+  // Lower disc rim — shadowed under-platform sticking out at the bottom
+  const lower = new Graphics();
+  const lowerHull = mirrorPoly([0, 32 * S, 56 * S, 26 * S, 80 * S, 12 * S, 78 * S, 30 * S, 56 * S, 46 * S]);
+  plate(lower, lowerHull, { d: p.d, m: 0x1c2814, l: 0x3a4a28, a: p.a });
+  // Underside ridges
+  for (let i = -3; i <= 3; i++) {
+    lower.rect(i * 18 * S - 1, 28 * S, 2, 14 * S).fill({ color: p.d, alpha: 0.85 });
+  }
+  root.addChild(lower);
+
+  // Main disc body — broad saucer with concentric tier rings
   const g = new Graphics();
-  // Long carrier hull
-  const hull = mirrorPoly([0, -38 * S, 32 * S, -32 * S, 72 * S, -16 * S, 84 * S, 8 * S, 76 * S, 38 * S, 40 * S, 52 * S]);
+  const hull = mirrorPoly([0, -22 * S, 38 * S, -18 * S, 70 * S, -4 * S, 86 * S, 14 * S, 78 * S, 24 * S, 50 * S, 32 * S]);
   plate(g, hull, p);
-  // Hull bands
-  rivets(g, -68 * S, -10 * S, 68 * S, -10 * S, 13);
-  rivets(g, -70 * S, 16 * S, 70 * S, 16 * S, 13);
+  // Tier rings carved into the disc — armoured deck plating
+  g.ellipse(0, 8 * S, 78 * S, 18 * S).stroke({ color: p.d, width: 1.4, alpha: 0.85 });
+  g.ellipse(0, 4 * S, 62 * S, 14 * S).stroke({ color: p.d, width: 1.2, alpha: 0.8 });
+  g.ellipse(0, 0, 46 * S, 10 * S).stroke({ color: p.d, width: 1, alpha: 0.7 });
+  // Radial structural ribs
+  for (let i = -4; i <= 4; i++) {
+    const t = i / 4;
+    g.moveTo(t * 32 * S, -16 * S).lineTo(t * 78 * S, 22 * S).stroke({ color: p.d, width: 0.8, alpha: 0.6 });
+  }
+  // Faint cyan-lit panel grid on the upper face
+  for (let i = -2; i <= 2; i++) {
+    g.rect(i * 18 * S - 6, -10 * S, 12 * S, 4 * S).fill({ color: acc2, alpha: 0.18 });
+  }
   root.addChild(g);
 
-  // Hangar bays (4 visible, with mini-drones inside)
-  const bay = new Graphics();
-  for (let i = -1.5; i <= 1.5; i += 1) {
-    const bx = i * 24 * S;
-    // Bay opening
-    bay.rect(bx - 10 * S, -32 * S, 20 * S, 16 * S).fill(0x000000);
-    bay.rect(bx - 10 * S, -32 * S, 20 * S, 16 * S).stroke({ color: p.d, width: 1.2 });
-    // Lit interior
-    bay.rect(bx - 9 * S, -31 * S, 18 * S, 14 * S).fill({ color: acc2, alpha: 0.65 });
-    bay.rect(bx - 8 * S, -30 * S, 16 * S, 5 * S).fill({ color: 0xffffff, alpha: 0.4 });
-    // Mini drone visible in bay
-    bay.circle(bx, -23 * S, 3 * S).fill(p.d);
-    bay.circle(bx, -23 * S, 2 * S).fill(p.a);
-    bay.circle(bx - 1 * S, -24 * S, 0.8).fill(0xffffff);
+  // City-lights belt — ring of amber/cyan window lights around the equator
+  const lights = new Graphics();
+  for (let i = -7; i <= 7; i++) {
+    const x = i * 11 * S;
+    // Two-row window strip
+    lights.rect(x - 3 * S, 16 * S, 6 * S, 1.6 * S).fill({ color: 0xffd166, alpha: 0.95 });
+    lights.rect(x - 3 * S, 20 * S, 6 * S, 1.6 * S).fill({ color: 0xfff0a0, alpha: 0.95 });
+    // Faint blue accent every other slot
+    if (i % 2 === 0) lights.rect(x - 1 * S, 12 * S, 2 * S, 1.4 * S).fill({ color: acc2, alpha: 0.9 });
   }
-  // Runway lights along the deck
-  for (let i = -3; i <= 3; i++) {
-    bay.circle(i * 12 * S, -14 * S, 1).fill(0xfff066);
+  // Edge running lights
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI;
+    lights.circle(Math.cos(a + Math.PI) * 84 * S, 24 * S + Math.sin(a) * 8 * S, 0.9).fill(0xfff066);
+  }
+  root.addChild(lights);
+
+  // Hangar bays around the equator — three wide bays facing the player.
+  const bay = new Graphics();
+  for (let i = -1; i <= 1; i++) {
+    const bx = i * 28 * S;
+    bay.rect(bx - 10 * S, 0, 20 * S, 14 * S).fill(0x000000);
+    bay.rect(bx - 10 * S, 0, 20 * S, 14 * S).stroke({ color: p.d, width: 1.2 });
+    bay.rect(bx - 9 * S, 1, 18 * S, 12 * S).fill({ color: acc2, alpha: 0.6 });
+    bay.rect(bx - 8 * S, 2, 16 * S, 4 * S).fill({ color: 0xffffff, alpha: 0.45 });
+    // Drone visible in each bay
+    bay.circle(bx, 9 * S, 3 * S).fill(p.d);
+    bay.circle(bx, 9 * S, 2 * S).fill(p.a);
+    bay.circle(bx - 1 * S, 8 * S, 0.8).fill(0xffffff);
   }
   root.addChild(bay);
 
-  // Command tower
-  const tower = new Graphics();
-  plate(tower, [-15 * S, -6 * S, -10 * S, -22 * S, 10 * S, -22 * S, 15 * S, -6 * S], { d: p.d, m: 0x3a4a2a, l: 0x6a8a4a, a: p.a });
-  tower.ellipse(0, -14 * S, 8 * S, 4 * S).fill(acc2);
-  tower.ellipse(0, -15 * S, 4 * S, 2 * S).fill(0xffffff);
-  // Mast
-  antennaArr(tower, 0, -22 * S, 14 * S, p.a);
-  root.addChild(tower);
+  // Central command dome — Independence-Day "city in a bubble" feel.
+  const cmd = new Graphics();
+  bulb(cmd, 0, -22 * S, 22 * S, 16 * S, { d: p.d, m: 0x3a4a2a, l: dome, a: p.a }, { specular: true, tilt: 0.4 });
+  // Embedded city spires inside the dome
+  for (const [sx, sh] of [[-12, 10], [-6, 14], [0, 16], [6, 12], [12, 9]] as Array<[number, number]>) {
+    cmd.rect(sx * S - 0.8, -22 * S, 1.6 * S, sh * S).fill({ color: 0xfff066, alpha: 0.95 });
+  }
+  // Dome rim glow
+  cmd.ellipse(0, -10 * S, 22 * S, 4 * S).fill({ color: p.a, alpha: 0.85 });
+  cmd.ellipse(0, -10 * S, 22 * S, 4 * S).stroke({ color: 0xffffff, width: 0.6, alpha: 0.7 });
+  // Vertical comm masts on top of the dome
+  antennaArr(cmd, 0, -36 * S, 16 * S, p.a);
+  antennaArr(cmd, -14 * S, -32 * S, 12 * S, acc2);
+  antennaArr(cmd, 14 * S, -32 * S, 12 * S, acc2);
+  root.addChild(cmd);
 
-  // Side turret rows
+  // Edge weapon emplacements — large ball turrets at 4/8 o'clock + small bow guns
   const cn = new Graphics();
-  eyeCannon(cn, -64 * S, 0, 5 * S, p.a);
-  eyeCannon(cn, -64 * S, 22 * S, 5 * S, p.a);
-  eyeCannon(cn, 64 * S, 0, 5 * S, p.a);
-  eyeCannon(cn, 64 * S, 22 * S, 5 * S, p.a);
-  eyeCannon(cn, -36 * S, 42 * S, 4 * S, p.a);
-  eyeCannon(cn, 36 * S, 42 * S, 4 * S, p.a);
-  // Front bow cannons
-  cannon(cn, -28 * S, -36 * S, 12 * S, 5 * S, { d: 0x101810, m: 0x2a3a1a, l: 0x4a6a30, a: p.a });
-  cannon(cn, 28 * S, -36 * S, 12 * S, 5 * S, { d: 0x101810, m: 0x2a3a1a, l: 0x4a6a30, a: p.a });
+  eyeCannon(cn, -66 * S, 10 * S, 5 * S, p.a);
+  eyeCannon(cn, 66 * S, 10 * S, 5 * S, p.a);
+  eyeCannon(cn, -42 * S, 30 * S, 4 * S, p.a);
+  eyeCannon(cn, 42 * S, 30 * S, 4 * S, p.a);
+  // Forward chin cannons (downward-pointing)
+  cannon(cn, -22 * S, 34 * S, 12 * S, 5 * S, { d: 0x101810, m: 0x2a3a1a, l: 0x4a6a30, a: p.a });
+  cannon(cn, 22 * S, 34 * S, 12 * S, 5 * S, { d: 0x101810, m: 0x2a3a1a, l: 0x4a6a30, a: p.a });
   root.addChild(cn);
 
-  // Hull lights
+  // Hull-rim status lights
   const lt = new Graphics();
-  for (const [x, y, c] of [[-72, -6, 0xff4040], [72, -6, 0x40ff40], [-72, 30, 0xff4040], [72, 30, 0x40ff40], [-40, 46, p.a], [40, 46, p.a]] as Array<[number, number, number]>) {
+  for (const [x, y, c] of [[-80, 16, 0xff4040], [80, 16, 0x40ff40], [-58, 30, p.a], [58, 30, p.a]] as Array<[number, number, number]>) {
     lightDot(lt, x * S, y * S, 1.6, c);
   }
   root.addChild(lt);
 
-  // Engines (4)
+  // Engines — 4 amber thrusters on the underside.
   const en = new Graphics();
-  engineBell(en, -50 * S, 46 * S, 12 * S, 14 * S, eng, p.d);
-  engineBell(en, -18 * S, 48 * S, 12 * S, 14 * S, eng, p.d);
-  engineBell(en, 18 * S, 48 * S, 12 * S, 14 * S, eng, p.d);
-  engineBell(en, 50 * S, 46 * S, 12 * S, 14 * S, eng, p.d);
+  engineBell(en, -50 * S, 36 * S, 12 * S, 14 * S, 0xffae44, p.d);
+  engineBell(en, -18 * S, 40 * S, 12 * S, 14 * S, 0xffae44, p.d);
+  engineBell(en, 18 * S, 40 * S, 12 * S, 14 * S, 0xffae44, p.d);
+  engineBell(en, 50 * S, 36 * S, 12 * S, 14 * S, 0xffae44, p.d);
   root.addChild(en);
 }
 

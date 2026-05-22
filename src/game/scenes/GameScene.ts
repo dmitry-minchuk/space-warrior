@@ -495,8 +495,12 @@ export class GameScene extends Scene {
       if (died) this.onEnemyDeath(e);
     }
     if (this.world.boss && this.world.boss.alive && !this.world.boss.entering) {
-      const died = this.world.boss.damage(200);
-      if (died) this.onBossDeath(this.world.boss);
+      // Bomb is AoE: full hull damage + a smaller share to every alive part
+      // so destructible modules still feel reactive to bomb usage.
+      const boss = this.world.boss;
+      boss.damageAllParts(80);
+      const died = boss.damage(200);
+      if (died) this.onBossDeath(boss);
     }
     this.hud.triggerScreenFlash(0xffffff, 0.5);
   }
@@ -548,8 +552,20 @@ export class GameScene extends Scene {
           const dx = b.x - p.x;
           const dy = b.y - p.y;
           const r = b.radius + p.radius;
-          if (dx * dx + dy * dy < r * r) {
-            const died = b.damage(p.damage);
+          let hit = dx * dx + dy * dy < r * r;
+          // Parts can stick out past the hull (claws, missile pods, etc.) —
+          // so a hit on any alive part also counts as a hit on the boss.
+          if (!hit) {
+            for (const part of b.parts) {
+              if (!part.alive) continue;
+              const pdx = (b.x + part.ox) - p.x;
+              const pdy = (b.y + part.oy) - p.y;
+              const pr = part.radius + p.radius;
+              if (pdx * pdx + pdy * pdy < pr * pr) { hit = true; break; }
+            }
+          }
+          if (hit) {
+            const died = b.damageAt(p.x, p.y, p.damage);
             bigHit(this.world, p.x, p.y, 0xffd166);
             if (p.visual === 'plasma') this.plasmaShockwave(p.x, p.y, p.damage * 0.6, b.id);
             if (p.piercing) {

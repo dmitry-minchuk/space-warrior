@@ -751,27 +751,46 @@ export function drawBoss05HiveCarrier(root: Container, S = 1): void {
 // BOSS 6 — Wreck Behemoth. Battered ruined warship.
 // =========================================================================
 export function drawBoss06WreckBehemoth(root: Container, S = 1): void {
-  const p: Pal = { d: 0x1d0e08, m: 0x4a2a18, l: 0x8a4a30, a: 0xff6a3a };
-  const eng = 0xffae44;
+  // Halo Covenant-style cruiser wreck: deep violet-purple hull with gold
+  // weapon channels, asymmetric battle damage, and exposed structural ribs.
+  const p: Pal = { d: 0x14081e, m: 0x3a1c52, l: 0x6a3c8a, a: 0xfff066 };
+  const eng = 0x88aaff;
   softGlow(root, -34 * S, 46 * S, 14 * S, eng, 7);
   softGlow(root, 34 * S, 46 * S, 14 * S, eng, 7);
   softGlow(root, 0, 52 * S, 18 * S, eng, 8);
+  // Internal fire bloom from breached sections
+  softGlow(root, 30 * S, -22 * S, 16 * S, 0xff5022, 8);
+  softGlow(root, -18 * S, 28 * S, 14 * S, 0xff5022, 7);
 
   const g = new Graphics();
-  // Battered hull
-  const hull = mirrorPoly([0, -58 * S, 18 * S, -48 * S, 30 * S, -28 * S, 52 * S, -4 * S, 56 * S, 24 * S, 44 * S, 44 * S, 26 * S, 50 * S]);
+  // Sleek Covenant-style hull — curved, organic, asymmetric
+  const hull = mirrorPoly([0, -62 * S, 16 * S, -50 * S, 28 * S, -32 * S, 50 * S, -8 * S, 56 * S, 22 * S, 42 * S, 46 * S, 24 * S, 52 * S]);
   plate(g, hull, p);
-  // Missing chunks (asymmetric)
-  g.poly([24 * S, -32 * S, 38 * S, -22 * S, 32 * S, -12 * S, 22 * S, -22 * S]).fill(0x000000);
-  g.poly([-22 * S, 18 * S, -8 * S, 30 * S, -16 * S, 38 * S, -28 * S, 30 * S]).fill(0x000000);
-  // Dark interior glow inside missing chunks
-  g.poly([26 * S, -30 * S, 36 * S, -22 * S, 32 * S, -14 * S, 24 * S, -22 * S]).fill({ color: 0x4a1a10, alpha: 0.95 });
-  g.poly([-20 * S, 20 * S, -10 * S, 28 * S, -18 * S, 34 * S, -26 * S, 28 * S]).fill({ color: 0x4a1a10, alpha: 0.95 });
-  // Ember glow
-  g.circle(30 * S, -22 * S, 4 * S).fill({ color: p.a, alpha: 0.9 });
-  g.circle(30 * S, -22 * S, 2 * S).fill(0xfff066);
-  g.circle(-18 * S, 28 * S, 4 * S).fill({ color: p.a, alpha: 0.9 });
-  g.circle(-18 * S, 28 * S, 2 * S).fill(0xfff066);
+  // Gold weapon channels carved into the hull surface (Covenant signature)
+  g.poly([-3 * S, -54 * S, 3 * S, -54 * S, 4 * S, 8 * S, -4 * S, 8 * S]).fill({ color: p.a, alpha: 0.6 });
+  g.poly([-1 * S, -56 * S, 1 * S, -56 * S, 2 * S, 6 * S, -2 * S, 6 * S]).fill(0xffffff);
+  // Side glow channels
+  g.poly([-26 * S, -10 * S, -22 * S, -10 * S, -18 * S, 20 * S, -22 * S, 20 * S]).fill({ color: p.a, alpha: 0.5 });
+  g.poly([22 * S, -10 * S, 26 * S, -10 * S, 22 * S, 20 * S, 18 * S, 20 * S]).fill({ color: p.a, alpha: 0.5 });
+  // Asymmetric battle damage — large blown-out hull sections
+  g.poly([24 * S, -32 * S, 40 * S, -22 * S, 34 * S, -10 * S, 22 * S, -20 * S]).fill(0x000000);
+  g.poly([-24 * S, 18 * S, -8 * S, 30 * S, -18 * S, 40 * S, -30 * S, 30 * S]).fill(0x000000);
+  // Exposed structural ribs jutting from the breaches
+  for (let i = 0; i < 4; i++) {
+    const rx = 24 * S + i * 4 * S;
+    g.rect(rx, -28 * S, 1, 14 * S).fill({ color: 0x7a5e2a, alpha: 0.9 });
+  }
+  for (let i = 0; i < 4; i++) {
+    const ry = 22 * S + i * 4 * S;
+    g.rect(-26 * S, ry, 16 * S, 1).fill({ color: 0x7a5e2a, alpha: 0.9 });
+  }
+  // Embers inside the breaches
+  g.poly([26 * S, -30 * S, 38 * S, -22 * S, 32 * S, -12 * S, 24 * S, -20 * S]).fill({ color: 0x6a1a10, alpha: 0.95 });
+  g.poly([-22 * S, 20 * S, -10 * S, 28 * S, -18 * S, 36 * S, -28 * S, 28 * S]).fill({ color: 0x6a1a10, alpha: 0.95 });
+  g.circle(30 * S, -22 * S, 5 * S).fill({ color: 0xff5022, alpha: 0.9 });
+  g.circle(30 * S, -22 * S, 2.5 * S).fill(0xfff066);
+  g.circle(-18 * S, 28 * S, 5 * S).fill({ color: 0xff5022, alpha: 0.9 });
+  g.circle(-18 * S, 28 * S, 2.5 * S).fill(0xfff066);
   root.addChild(g);
 
   // Scorch marks
@@ -833,6 +852,25 @@ export function drawBoss07MineMother(root: Container, S = 1): void {
   const eng = 0xffaa44;
   softGlow(root, 0, 0, 36 * S, p.a, 10);
   softGlow(root, 0, 48 * S, 16 * S, eng, 8);
+
+  // Captured-asteroid debris ring around the platform — mining megastructure
+  // vibe, with anchor chains tying chunks to the rig.
+  const debris = new Graphics();
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const r = (66 + (i % 3) * 5) * S;
+    const cx = Math.cos(a) * r;
+    const cy = Math.sin(a) * r * 0.55;
+    const sz = (3 + (i % 4)) * S;
+    // Rough rock chunk
+    debris.poly([cx - sz, cy, cx - sz * 0.4, cy - sz, cx + sz * 0.6, cy - sz * 0.6, cx + sz, cy + sz * 0.4, cx, cy + sz]).fill(0x2a1d10);
+    debris.poly([cx - sz * 0.4, cy - sz * 0.4, cx + sz * 0.3, cy - sz * 0.7, cx + sz * 0.7, cy]).fill(0x4a3a20);
+    // Ore vein glint
+    if (i % 3 === 0) debris.circle(cx, cy, 0.9).fill(0xffaa44);
+    // Tether to the rig core
+    debris.moveTo(cx, cy).lineTo(cx * 0.55, cy * 0.55).stroke({ color: 0x0a0a0a, width: 1, alpha: 0.55 });
+  }
+  root.addChild(debris);
 
   const g = new Graphics();
   // Hex platform
@@ -946,26 +984,42 @@ export function drawBoss07MineMother(root: Container, S = 1): void {
 // BOSS 8 — Ghost Sniper. Predator stealth bomber with sniper barrel.
 // =========================================================================
 export function drawBoss08GhostSniper(root: Container, S = 1): void {
-  const p: Pal = { d: 0x14100a, m: 0x2a2418, l: 0x6a583a, a: 0xfff066 };
-  const stealthMid = 0x3a3030;
-  softGlow(root, 0, 50 * S, 16 * S, p.a, 8);
-  softGlow(root, 0, -12 * S, 22 * S, p.a, 7);
+  // Klingon Bird-of-Prey palette — dark green-grey with brass detailing.
+  const p: Pal = { d: 0x0a1810, m: 0x1c3a24, l: 0x4a7a4a, a: 0xc4a058 };
+  const stealthMid = 0x1a2820;
+  softGlow(root, 0, 50 * S, 16 * S, 0xffd166, 8);
+  softGlow(root, 0, -12 * S, 22 * S, 0xff6a3a, 7);
+  // Faint cloak shimmer aura — wraps the whole silhouette.
+  softGlow(root, 0, 0, 60 * S, 0x66ffcb, 4);
+
+  // Outer swept "wings" — BoP signature: dropped, angular, predator-claw shape.
+  const wings = new Graphics();
+  const leftWing = [-22 * S, -8 * S, -50 * S, 6 * S, -76 * S, 30 * S, -68 * S, 38 * S, -48 * S, 22 * S, -22 * S, 12 * S];
+  const rightWing = [22 * S, -8 * S, 50 * S, 6 * S, 76 * S, 30 * S, 68 * S, 38 * S, 48 * S, 22 * S, 22 * S, 12 * S];
+  plate(wings, leftWing, p);
+  plate(wings, rightWing, p);
+  // Brass leading-edge highlight
+  wings.poly([-22 * S, -8 * S, -50 * S, 6 * S, -52 * S, 10 * S, -22 * S, -4 * S]).fill({ color: p.a, alpha: 0.7 });
+  wings.poly([22 * S, -8 * S, 50 * S, 6 * S, 52 * S, 10 * S, 22 * S, -4 * S]).fill({ color: p.a, alpha: 0.7 });
+  // Wing-tip claw fangs
+  wings.poly([-76 * S, 30 * S, -82 * S, 36 * S, -72 * S, 38 * S]).fill(p.a);
+  wings.poly([76 * S, 30 * S, 82 * S, 36 * S, 72 * S, 38 * S]).fill(p.a);
+  root.addChild(wings);
 
   const g = new Graphics();
-  // Wide stealth-bomber silhouette
-  const hull = mirrorPoly([0, -50 * S, 14 * S, -38 * S, 24 * S, -14 * S, 56 * S, 20 * S, 64 * S, 36 * S, 36 * S, 44 * S, 16 * S, 30 * S]);
+  // Compact predator fuselage between the wings — narrow neck + body.
+  const hull = mirrorPoly([0, -50 * S, 12 * S, -38 * S, 18 * S, -14 * S, 22 * S, 16 * S, 28 * S, 36 * S, 18 * S, 44 * S]);
   plate(g, hull, p);
-  // Stealth facets
-  for (let i = -2; i <= 2; i++) {
-    const x = i * 18 * S;
-    g.poly([x - 4 * S, 0, x + 4 * S, 0, x + 2 * S, 12 * S, x - 2 * S, 12 * S]).fill({ color: stealthMid, alpha: 0.6 });
+  // Hull stealth facets
+  for (let i = -1; i <= 1; i++) {
+    const x = i * 10 * S;
+    g.poly([x - 4 * S, 0, x + 4 * S, 0, x + 2 * S, 12 * S, x - 2 * S, 12 * S]).fill({ color: stealthMid, alpha: 0.7 });
   }
-  // Wing slashes
-  g.moveTo(-28 * S, -4 * S).lineTo(-60 * S, 30 * S).stroke({ color: p.d, width: 2, alpha: 0.7 });
-  g.moveTo(28 * S, -4 * S).lineTo(60 * S, 30 * S).stroke({ color: p.d, width: 2, alpha: 0.7 });
-  // Gold accent stripes
-  g.poly([-26 * S, -10 * S, -54 * S, 20 * S, -50 * S, 24 * S, -22 * S, -6 * S]).fill({ color: p.a, alpha: 0.55 });
-  g.poly([26 * S, -10 * S, 54 * S, 20 * S, 50 * S, 24 * S, 22 * S, -6 * S]).fill({ color: p.a, alpha: 0.55 });
+  // Spine ridge — classic BoP centre line
+  g.poly([-2 * S, -46 * S, 2 * S, -46 * S, 3 * S, 38 * S, -3 * S, 38 * S]).fill({ color: p.d, alpha: 0.9 });
+  // Brass house-of-Klingon emblem (tri-prong star)
+  g.poly([0, 4 * S, 4 * S, 12 * S, 0, 8 * S, -4 * S, 12 * S]).fill({ color: p.a, alpha: 0.95 });
+  g.circle(0, 8 * S, 1.4).fill(0xffffff);
   root.addChild(g);
 
   // Long sniper barrel
@@ -1126,6 +1180,37 @@ export function drawBoss09KamikazeQueen(root: Container, S = 1): void {
   bulb(core, 0, 0, 8 * S, 7 * S, { d: p.d, m: p.a, l: 0xffc4d6, a: 0xffffff }, { core: true });
   root.addChild(core);
 
+  // Tyranid-style chitinous spine spikes jutting back from the carapace.
+  const spikes = new Graphics();
+  for (let i = 0; i < 5; i++) {
+    const y = -50 * S + i * 22 * S;
+    const w = 10 * S - i * 0.5 * S;
+    // Left spike
+    spikes.poly([-w, y, -w - 10 * S, y - 5 * S, -w - 4 * S, y]).fill(gold.d);
+    spikes.poly([-w, y, -w - 8 * S, y - 4 * S, -w - 4 * S, y]).fill(gold.m);
+    spikes.circle(-w - 8 * S, y - 4 * S, 1).fill(gold.a);
+    // Right spike
+    spikes.poly([w, y, w + 10 * S, y - 5 * S, w + 4 * S, y]).fill(gold.d);
+    spikes.poly([w, y, w + 8 * S, y - 4 * S, w + 4 * S, y]).fill(gold.m);
+    spikes.circle(w + 8 * S, y - 4 * S, 1).fill(gold.a);
+  }
+  root.addChild(spikes);
+
+  // Biomass tendrils dangling under the abdomen
+  const tendrils = new Graphics();
+  for (const sign of [-1, 0, 1]) {
+    const sx = sign * 8 * S;
+    tendrils.moveTo(sx, 38 * S)
+      .bezierCurveTo(sx, 50 * S, sx + sign * 4 * S, 60 * S, sx + sign * 2 * S, 68 * S)
+      .stroke({ color: gold.d, width: 3, alpha: 0.9 });
+    tendrils.moveTo(sx, 38 * S)
+      .bezierCurveTo(sx, 50 * S, sx + sign * 4 * S, 60 * S, sx + sign * 2 * S, 68 * S)
+      .stroke({ color: p.m, width: 1.6, alpha: 0.85 });
+    tendrils.circle(sx + sign * 2 * S, 68 * S, 2 * S).fill(p.a);
+    tendrils.circle(sx + sign * 2 * S, 68 * S, 1).fill(0xffffff);
+  }
+  root.addChild(tendrils);
+
   // Bottom legs (claw-feet)
   const claws = new Graphics();
   for (const sign of [-1, 1]) {
@@ -1144,6 +1229,24 @@ export function drawBoss10SaturnDreadnought(root: Container, S = 1): void {
   const p: Pal = { d: 0x0a1228, m: 0x1f3258, l: 0x4a6aa8, a: 0xffaa66 };
   const eng = 0xffd166;
   for (let i = -2; i <= 2; i++) softGlow(root, i * 20 * S, 64 * S, 14 * S, eng, 8);
+
+  // Saturn rings — the iconic feature that earns the boss its name.
+  // Two concentric inclined elliptical bands enclose the ship horizontally.
+  const rings = new Graphics();
+  // Outer ring
+  rings.ellipse(0, -2 * S, 130 * S, 22 * S).stroke({ color: 0xc4a058, width: 3.5, alpha: 0.92 });
+  rings.ellipse(0, -2 * S, 122 * S, 18 * S).stroke({ color: 0xfff0a0, width: 1.8, alpha: 0.85 });
+  // Middle ring gap (visual band)
+  rings.ellipse(0, -2 * S, 110 * S, 14 * S).stroke({ color: 0xc4a058, width: 2.2, alpha: 0.75 });
+  rings.ellipse(0, -2 * S, 104 * S, 12 * S).stroke({ color: 0x6a5a30, width: 1, alpha: 0.6 });
+  // Inner ring debris dots
+  for (let i = 0; i < 22; i++) {
+    const a = (i / 22) * Math.PI * 2;
+    const r1 = 100 * S + (i % 3) * 6 * S;
+    const r2 = 11 * S + (i % 3) * 0.6 * S;
+    rings.circle(Math.cos(a) * r1, -2 * S + Math.sin(a) * r2, 0.9).fill(0xfff066);
+  }
+  root.addChild(rings);
 
   const g = new Graphics();
   // Long armored hull
@@ -1281,13 +1384,42 @@ export function drawBoss11Phantom(root: Container, S = 1): void {
   gemCrystal(sp, 0, -54 * S, 6 * S, p.a);
   root.addChild(sp);
 
-  // Trailing tendril at back
+  // Reaper-style tendrils trailing below the spine — multiple curling
+  // tentacles like Sovereign / Cthulhu beneath the mantle.
   const ten = new Graphics();
-  ten.moveTo(0, 52 * S).bezierCurveTo(-6 * S, 58 * S, 4 * S, 64 * S, 0, 70 * S).stroke({ color: p.a, width: 3, alpha: 0.9 });
-  ten.moveTo(0, 52 * S).bezierCurveTo(-6 * S, 58 * S, 4 * S, 64 * S, 0, 70 * S).stroke({ color: 0xffffff, width: 1, alpha: 0.95 });
-  ten.circle(0, 70 * S, 3).fill(p.a);
-  ten.circle(0, 70 * S, 1.4).fill(0xffffff);
+  // Define 5 tendrils with distinct curve paths
+  const tendrils: Array<[number, number, number, number, number, number]> = [
+    [-8 * S, 38 * S, -22 * S, 56 * S, -16 * S, 78 * S],
+    [-4 * S, 44 * S, -8 * S, 64 * S, 0, 80 * S],
+    [0, 50 * S, -4 * S, 66 * S, 6 * S, 82 * S],
+    [4 * S, 44 * S, 8 * S, 64 * S, 0, 80 * S],
+    [8 * S, 38 * S, 22 * S, 56 * S, 16 * S, 78 * S],
+  ];
+  for (let i = 0; i < tendrils.length; i++) {
+    const t = tendrils[i];
+    const [sx, sy, mx, my, ex, ey] = t;
+    // Dark backing
+    ten.moveTo(sx, sy).bezierCurveTo(sx, my, mx, my, ex, ey)
+      .stroke({ color: p.d, width: 4.5, alpha: 0.95 });
+    ten.moveTo(sx, sy).bezierCurveTo(sx, my, mx, my, ex, ey)
+      .stroke({ color: p.m, width: 3, alpha: 0.9 });
+    ten.moveTo(sx, sy).bezierCurveTo(sx, my, mx, my, ex, ey)
+      .stroke({ color: p.l, width: 1.2, alpha: 0.85 });
+    // Tip claw / glow
+    ten.circle(ex, ey, 2.5).fill(p.a);
+    ten.circle(ex, ey, 1.2).fill(0xffffff);
+    // Mid-tendril nodule
+    ten.circle(mx, my, 1.4).fill(p.a);
+  }
   root.addChild(ten);
+
+  // Sovereign-style central red eye overlaying the crystal core
+  const eye = new Graphics();
+  eye.circle(0, 0, 5 * S).fill(0x000000);
+  eye.circle(0, 0, 4 * S).fill({ color: 0xff2244, alpha: 0.95 });
+  eye.circle(0, 0, 2.4 * S).fill({ color: 0xff8866, alpha: 0.9 });
+  eye.circle(-0.4 * S, -0.4 * S, 1 * S).fill(0xffffff);
+  root.addChild(eye);
 }
 
 // =========================================================================
@@ -1363,6 +1495,35 @@ export function drawBoss12StormSphere(root: Container, S = 1): void {
     core.moveTo(0, 0).lineTo(Math.cos(a) * 10 * S, Math.sin(a) * 10 * S).stroke({ color: 0xffffff, width: 0.8, alpha: 0.85 });
   }
   root.addChild(core);
+
+  // Lightning halo — ragged outer ring of static arcs ringing the whole
+  // construct, like a dominator orb caught mid-discharge.
+  const halo = new Graphics();
+  const halR = (R + 28 * S) * 1.18;
+  for (let i = 0; i < 32; i++) {
+    const a1 = (i / 32) * Math.PI * 2;
+    const a2 = ((i + 1) / 32) * Math.PI * 2;
+    const r1 = halR * (1 + (Math.sin(i * 0.7) * 0.08));
+    const r2 = halR * (1 + (Math.sin((i + 1) * 0.7) * 0.08));
+    halo.moveTo(Math.cos(a1) * r1, Math.sin(a1) * r1)
+      .lineTo(Math.cos(a2) * r2, Math.sin(a2) * r2)
+      .stroke({ color: 0xeaffff, width: 1.1, alpha: 0.55 });
+  }
+  // 6 stronger discharge bolts radiating outward
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.4;
+    const r0 = halR;
+    const r1 = halR * 1.18;
+    const r2 = halR * 1.36;
+    const jx = Math.cos(a + 0.08) * r1;
+    const jy = Math.sin(a + 0.08) * r1;
+    halo.moveTo(Math.cos(a) * r0, Math.sin(a) * r0)
+      .lineTo(jx, jy)
+      .lineTo(Math.cos(a) * r2, Math.sin(a) * r2)
+      .stroke({ color: 0xffffff, width: 1.2, alpha: 0.85 });
+    halo.circle(Math.cos(a) * r2, Math.sin(a) * r2, 1.4).fill(0xeaffff);
+  }
+  root.addChild(halo);
 }
 
 // =========================================================================
@@ -1381,6 +1542,29 @@ export function drawBoss13BlazingCitadel(root: Container, S = 1): void {
   plate(g, mirrorPoly([0, 50 * S, 58 * S, 44 * S, 66 * S, 28 * S, 66 * S, 12 * S, 50 * S, 4 * S]), p);
   plate(g, mirrorPoly([0, 14 * S, 46 * S, 8 * S, 50 * S, -8 * S, 46 * S, -22 * S, 32 * S, -28 * S]), p);
   plate(g, mirrorPoly([0, -16 * S, 24 * S, -22 * S, 28 * S, -40 * S, 22 * S, -56 * S, 14 * S, -62 * S]), p);
+
+  // Imperial-40K aquila + skull emblem on the top tier — black silhouette
+  // backed by a bone-white outline so it reads from far away.
+  // Skull crown
+  g.ellipse(0, -38 * S, 6.5 * S, 5 * S).fill(0xf4ead0);
+  g.ellipse(0, -38 * S, 6.5 * S, 5 * S).stroke({ color: p.d, width: 1.2 });
+  // Eye sockets
+  g.circle(-2 * S, -38 * S, 1.2 * S).fill(p.d);
+  g.circle(2 * S, -38 * S, 1.2 * S).fill(p.d);
+  g.circle(-2 * S, -38 * S, 0.6 * S).fill(0xff5044);
+  g.circle(2 * S, -38 * S, 0.6 * S).fill(0xff5044);
+  // Jaw
+  g.poly([-3 * S, -34 * S, 3 * S, -34 * S, 2 * S, -31 * S, -2 * S, -31 * S]).fill(0xf4ead0);
+  g.rect(-2 * S, -33 * S, 1, 2 * S).fill(p.d);
+  g.rect(0, -33 * S, 1, 2 * S).fill(p.d);
+  // Spread aquila wings flanking the skull
+  g.poly([-7 * S, -38 * S, -16 * S, -42 * S, -14 * S, -36 * S, -7 * S, -36 * S]).fill(0xc4a058);
+  g.poly([7 * S, -38 * S, 16 * S, -42 * S, 14 * S, -36 * S, 7 * S, -36 * S]).fill(0xc4a058);
+  g.poly([-7 * S, -38 * S, -16 * S, -42 * S, -14 * S, -36 * S, -7 * S, -36 * S]).stroke({ color: p.d, width: 0.6 });
+  g.poly([7 * S, -38 * S, 16 * S, -42 * S, 14 * S, -36 * S, 7 * S, -36 * S]).stroke({ color: p.d, width: 0.6 });
+  // Crown halo
+  g.circle(0, -46 * S, 1.4 * S).fill(0xfff066);
+  g.circle(0, -46 * S, 0.7 * S).fill(0xffffff);
   root.addChild(g);
 
   // Lava cracks (orange streams along tier seams)
@@ -1602,16 +1786,37 @@ export function drawBoss16EventHorizon(root: Container, S = 1): void {
   const violet = 0xc366ff;
   softGlow(root, 0, 38 * S, 70 * S, p.a, 14);
 
-  // Vortex behind the ship
+  // Vortex behind the ship — concentric ellipses + a spiralling accretion
+  // arm that swirls into the singularity (Event-Horizon film vibe).
   const vor = new Graphics();
   for (let i = 8; i >= 1; i--) {
     const r = i * 14 * S;
     vor.ellipse(0, 38 * S, r * 1.6, r * 0.55).stroke({ color: violet, width: 2, alpha: 0.12 + i * 0.07 });
   }
-  vor.circle(0, 38 * S, 28 * S).fill(0x000000);
-  vor.circle(0, 38 * S, 22 * S).fill(0x2a1040);
-  vor.circle(0, 38 * S, 14 * S).fill(p.a);
-  vor.circle(0, 38 * S, 7 * S).fill(0xffffff);
+  // Spiral accretion arm — sequence of stretched ellipses rotating inward
+  for (let i = 0; i < 24; i++) {
+    const t = i / 24;
+    const a = t * Math.PI * 4 + Math.PI / 2;
+    const r = (10 + t * 90) * S;
+    const cx = Math.cos(a) * r * 0.95;
+    const cy = 38 * S + Math.sin(a) * r * 0.4;
+    const dotR = (1.4 + (1 - t) * 2.2) * S;
+    vor.ellipse(cx, cy, dotR * 1.2, dotR * 0.6).fill({ color: p.a, alpha: 0.6 + t * 0.3 });
+    vor.ellipse(cx, cy, dotR * 0.6, dotR * 0.3).fill({ color: 0xfff0a0, alpha: 0.85 });
+  }
+  // Counter-rotating second arm for richer swirl
+  for (let i = 0; i < 18; i++) {
+    const t = i / 18;
+    const a = -t * Math.PI * 3 + Math.PI;
+    const r = (12 + t * 70) * S;
+    vor.circle(Math.cos(a) * r * 0.85, 38 * S + Math.sin(a) * r * 0.35, 1).fill({ color: violet, alpha: 0.85 });
+  }
+  // Event horizon — dark sphere at the centre
+  vor.circle(0, 38 * S, 30 * S).fill(0x000000);
+  vor.circle(0, 38 * S, 24 * S).fill(0x2a1040);
+  vor.circle(0, 38 * S, 16 * S).fill(p.a);
+  vor.circle(0, 38 * S, 8 * S).fill(0xfff066);
+  vor.circle(0, 38 * S, 4 * S).fill(0xffffff);
   root.addChild(vor);
 
   const g = new Graphics();
@@ -2005,6 +2210,23 @@ export function drawBoss20Architect(root: Container, S = 1): void {
   const p: Pal = { d: 0x14082a, m: 0x2a1448, l: 0x5a2d8a, a: 0xfff066 };
   const violet = 0xc466ff;
   softGlow(root, 0, 0, 80 * S, p.a, 16);
+  // Outer Forerunner-monitor halo glow
+  softGlow(root, 0, 0, 120 * S, 0xffd166, 5);
+
+  // Orbital halo — a thin runic ring encircling the construct horizontally,
+  // tilted like a Halo / Reaper-Sovereign aura. Drawn under the main body.
+  const halo = new Graphics();
+  halo.ellipse(0, -8 * S, 130 * S, 18 * S).stroke({ color: violet, width: 3, alpha: 0.6 });
+  halo.ellipse(0, -8 * S, 130 * S, 18 * S).stroke({ color: p.a, width: 1.4, alpha: 0.85 });
+  halo.ellipse(0, -8 * S, 124 * S, 14 * S).stroke({ color: 0xffffff, width: 0.6, alpha: 0.5 });
+  // Halo segments — 16 short tick marks
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const x = Math.cos(a) * 130 * S;
+    const y = -8 * S + Math.sin(a) * 18 * S;
+    halo.circle(x, y, 1.6).fill(p.a);
+  }
+  root.addChild(halo);
 
   // Outer triangular crystal
   const g = new Graphics();
@@ -2043,19 +2265,24 @@ export function drawBoss20Architect(root: Container, S = 1): void {
   }
   root.addChild(subs);
 
-  // Central portal-eye
+  // Central portal-eye — Forerunner-Monitor / Reaper-Sovereign hybrid.
+  // A red horizontal scanner slit lays over the bright violet core.
   const eye = new Graphics();
-  eye.circle(0, -4 * S, 22 * S).fill(0x000000);
-  eye.circle(0, -4 * S, 22 * S).stroke({ color: p.a, width: 3 });
-  eye.circle(0, -4 * S, 18 * S).fill({ color: violet, alpha: 0.9 });
-  eye.circle(0, -4 * S, 13 * S).fill(p.a);
-  eye.circle(0, -4 * S, 8 * S).fill(0xffffff);
-  eye.circle(0, -4 * S, 4 * S).fill(p.a);
-  // Iris glyph
+  eye.circle(0, -4 * S, 24 * S).fill(0x000000);
+  eye.circle(0, -4 * S, 24 * S).stroke({ color: p.a, width: 3.2 });
+  eye.circle(0, -4 * S, 20 * S).fill({ color: violet, alpha: 0.9 });
+  eye.circle(0, -4 * S, 14 * S).fill(p.a);
+  eye.circle(0, -4 * S, 9 * S).fill(0xffffff);
+  // Iris focusing dots
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
-    eye.circle(Math.cos(a) * 16 * S, -4 * S + Math.sin(a) * 16 * S, 1.4).fill(0x000000);
+    eye.circle(Math.cos(a) * 17 * S, -4 * S + Math.sin(a) * 17 * S, 1.4).fill(0x000000);
   }
+  // Sovereign-style horizontal scanner slit, centred
+  eye.rect(-22 * S, -7 * S, 44 * S, 6 * S).fill(0x000000);
+  eye.rect(-21 * S, -6 * S, 42 * S, 4 * S).fill({ color: 0xff2244, alpha: 0.95 });
+  eye.rect(-12 * S, -5.5 * S, 24 * S, 3 * S).fill({ color: 0xff8866, alpha: 0.95 });
+  eye.rect(-3 * S, -5 * S, 6 * S, 2 * S).fill(0xffffff);
   root.addChild(eye);
 
   // Floating rune glyphs orbiting the construct

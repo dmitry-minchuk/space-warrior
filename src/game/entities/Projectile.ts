@@ -39,6 +39,11 @@ export interface ProjectileOpts {
   homingTurn?: number;
   interceptible?: boolean;
   interceptHp?: number;
+  /** Splash damage radius in pixels. When set, the collision handler applies
+   *  `splashDamage` to every other enemy / boss within this radius of the
+   *  impact point. Used by missiles to clear tight clusters. */
+  splashRadius?: number;
+  splashDamage?: number;
 }
 
 function defaultInterceptHp(owner: ProjectileOwner, visual: ProjectileVisual): number {
@@ -94,6 +99,8 @@ export class Projectile {
   homingTurn = 4;
   interceptible = false;
   interceptHp = 0;
+  splashRadius = 0;
+  splashDamage = 0;
 
   constructor() {
     this.sprite = new Sprite();
@@ -130,6 +137,8 @@ export class Projectile {
     const interceptHp = opts.interceptHp ?? defaultInterceptHp(opts.owner, opts.visual);
     this.interceptHp = interceptHp;
     this.interceptible = opts.interceptible ?? (opts.owner === 'enemy' && interceptHp > 0);
+    this.splashRadius = opts.splashRadius ?? 0;
+    this.splashDamage = opts.splashDamage ?? 0;
     this.sprite.texture = opts.texture;
     this.sprite.position.set(this.x, this.y);
     this.sprite.alpha = 1;

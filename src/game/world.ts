@@ -12,6 +12,7 @@ import type { Boss } from './entities/Boss';
 import type { Particle } from './entities/Particle';
 import { ParticlePool } from './entities/Particle';
 import type { FloatingText } from './vfx/FloatingText';
+import type { Telemetry } from './telemetry';
 
 export interface Audio {
   play(name: string, opts?: { volume?: number; pitch?: number }): void;
@@ -61,6 +62,7 @@ export interface World {
   onBossKilled: (boss: Boss) => void;
   // Helpers
   audio: Audio;
+  telemetry: Telemetry;
 }
 
 export function makeEmptyWorld(): Partial<World> {

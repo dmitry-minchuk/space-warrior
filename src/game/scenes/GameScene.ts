@@ -21,11 +21,28 @@ import type { Audio, World } from '../world';
 import { makeEmptyWorld } from '../world';
 import { WEAPONS, fireBonusMissile } from '../weapons/weapons';
 import { WEAPON_LABELS, type WeaponId } from '../weapons/types';
-import { bigHit, bombFlash, emitEngineTrail, emitEnemyEngine, explosion, hitSpark, pickupFlash } from '../vfx/Vfx';
+import { bigHit, bombFlash, emitEngineTrail, emitEnemyEngine, explosion, hitSpark, missileBlast, pickupFlash } from '../vfx/Vfx';
 import { FloatingText } from '../vfx/FloatingText';
 import { themeForLevel } from '../palette';
+import { Telemetry } from '../telemetry';
 
 interface CollisionResult { hit: boolean; }
+
+/** Map a projectile visual to the weapon id that fired it. Wave / lightning
+ *  reuse the same texture variants, hence the explicit aliases. */
+function projectileWeapon(visual: string): WeaponId | null {
+  switch (visual) {
+    case 'pulse': return 'pulse';
+    case 'spread': return 'spread';
+    case 'plasma': return 'plasma';
+    case 'missile': return 'missiles';
+    case 'wave': return 'wave';
+    case 'lightning':
+    case 'laser':
+      return 'lightning';
+    default: return null;
+  }
+}
 
 function projectileHitColor(visual: string): number {
   switch (visual) {
@@ -76,6 +93,9 @@ export class GameScene extends Scene {
   // Persistent Graphics used to draw flickering arcs between active wave-gun
   // projectiles each frame. Cleared and redrawn every update.
   waveArcGfx!: Graphics;
+  // Per-run telemetry sink. Dev-server pipes flushes to disk; in production
+  // builds the fetch calls just silently fail.
+  telemetry!: Telemetry;
 
   constructor(atlas: Atlas, audio: Audio, startLevel = 1) {
     super();
@@ -84,6 +104,9 @@ export class GameScene extends Scene {
     this.state = createInitialState();
     this.state.level = startLevel;
     this.startLevel = startLevel;
+    this.telemetry = new Telemetry('0.1.0');
+    this.telemetry.setLevel(startLevel);
+    this.telemetry.setWeapon('pulse');
   }
 
   override enter(): void {
@@ -132,6 +155,7 @@ export class GameScene extends Scene {
       onEnemyKilled: (e) => this.onEnemyDeath(e),
       onBossKilled: (b) => this.onBossDeath(b),
       audio: this.audio,
+      telemetry: this.telemetry,
     } as World;
 
     this.background = new Background(this.atlas, layers);
@@ -141,6 +165,7 @@ export class GameScene extends Scene {
     this.waveArcGfx = new Graphics();
     layers.projectiles.addChild(this.waveArcGfx);
 
+    this.telemetry.startLevel(this.state.level);
     this.startLevelFlow(this.state.level);
 
     player.spawn(layers.entities);
@@ -206,6 +231,18 @@ export class GameScene extends Scene {
     }
 
     this.world.time += dt;
+
+    // Telemetry tick — periodic flush + sample-loop. The lambda is the
+    // current per-tick snapshot we want sampled.
+    this.telemetry.tick(dt, () => ({
+      enemies: this.world.enemies.filter((e) => e.alive).length,
+      bullets: this.world.projectiles.filter((p) => p.alive && p.owner === 'enemy').length,
+      hp: this.world.player.alive ? this.world.player.hp : 0,
+      weapon: this.world.player.alive ? this.state.weapon : 'none',
+      level: this.state.level,
+    }));
+    this.telemetry.setScore(this.state.score);
+    this.telemetry.setWeapon(this.world.player.alive ? this.state.weapon : 'none');
 
     // Run any deferred actions scheduled against game-time.
     if (this.deferredActions.length) {
@@ -469,20 +506,26 @@ export class GameScene extends Scene {
     if (level === 5 && p.bonusMissileTimer <= 0) {
       fireBonusMissile(this.world, p, dmgMul);
       p.bonusMissileTimer = 0.5;
+      this.telemetry.recordShot(this.state.weapon);
     }
     if (def.continuous) {
       def.continuous(this.world, p, level, dmgMul, dt);
+      // Continuous weapons (e.g. lightning) tick down their own internal cd,
+      // so we approximate a shot-count via the player's fire input edge.
+      if (Input.wasPressed('fire')) this.telemetry.recordShot(this.state.weapon);
       return;
     }
     if (p.fireTimer > 0) return;
     def.fire(this.world, p, level, dmgMul);
     p.fireTimer = 1 / def.rate(level);
+    this.telemetry.recordShot(this.state.weapon);
   }
 
   private handlePlayerBomb(): void {
     if (!Input.wasPressed('bomb')) return;
     if (this.state.bombs <= 0) return;
     this.state.bombs--;
+    this.telemetry.recordBomb();
     bombFlash(this.world);
     // Clear enemy projectiles
     for (const pr of this.world.projectiles) {
@@ -528,6 +571,8 @@ export class GameScene extends Scene {
           hitSpark(this.world, ep.x, ep.y, ep.visual === 'mine' ? 0xff8a3d : 0xc4e2ff);
           if (ep.interceptHp <= 0) {
             ep.alive = false;
+            const pw = projectileWeapon(p.visual);
+            if (pw) this.telemetry.recordIntercept(pw);
             if (ep.visual === 'mine' || ep.visual === 'enemyBomb') explosion(this.world, ep.x, ep.y, 'sm');
           }
           if (!p.piercing) p.alive = false;
@@ -566,15 +611,23 @@ export class GameScene extends Scene {
           }
           if (hit) {
             const died = b.damageAt(p.x, p.y, p.damage);
+            const pw = projectileWeapon(p.visual);
+            if (pw) this.telemetry.recordHit(pw, p.damage, 'boss');
             bigHit(this.world, p.x, p.y, 0xffd166);
             if (p.visual === 'plasma') this.plasmaShockwave(p.x, p.y, p.damage * 0.6, b.id);
+            if (p.splashRadius > 0 && p.splashDamage > 0) {
+              this.applyProjectileSplash(p, b.id, pw);
+            }
             if (p.piercing) {
               if (useCooldown) p.hitCooldown.set(b.id, now);
               else p.hitIds.add(b.id);
             } else {
               p.alive = false;
             }
-            if (died) this.onBossDeath(b);
+            if (died) {
+              if (pw) this.telemetry.recordKill(pw);
+              this.onBossDeath(b);
+            }
           }
         }
       }
@@ -594,15 +647,23 @@ export class GameScene extends Scene {
         const r = e.archetype.radius + p.radius;
         if (dx * dx + dy * dy < r * r) {
           const died = e.damage(p.damage);
+          const pw = projectileWeapon(p.visual);
+          if (pw) this.telemetry.recordHit(pw, p.damage, 'enemy');
           hitSpark(this.world, p.x, p.y, projectileHitColor(p.visual));
           if (p.visual === 'plasma') this.plasmaShockwave(p.x, p.y, p.damage * 0.6, e.id);
+          if (p.splashRadius > 0 && p.splashDamage > 0) {
+            this.applyProjectileSplash(p, e.id, pw);
+          }
           if (p.piercing) {
             if (useCooldown) p.hitCooldown.set(e.id, now);
             else p.hitIds.add(e.id);
           } else {
             p.alive = false;
           }
-          if (died) this.onEnemyDeath(e);
+          if (died) {
+            if (pw) this.telemetry.recordKill(pw);
+            this.onEnemyDeath(e);
+          }
           if (!p.piercing) break;
         }
       }
@@ -673,6 +734,12 @@ export class GameScene extends Scene {
     const before = this.world.player.hp;
     const res = this.world.player.damage(amount, this.state.shieldHp);
     this.state.shieldHp = res.shieldRemain;
+    // Split shielded vs. hull damage for telemetry: amount absorbed by the
+    // shield = total amount - what actually came out of HP.
+    const hullTook = before - this.world.player.hp;
+    const shieldTook = Math.max(0, amount - hullTook);
+    if (shieldTook > 0) this.telemetry.recordPlayerDamage(shieldTook, true);
+    if (hullTook > 0) this.telemetry.recordPlayerDamage(hullTook, false);
     if (res.took > 0) {
       this.audio.play('player_hit', { volume: 0.4 });
       this.hud.triggerDamageFlash();
@@ -723,6 +790,7 @@ export class GameScene extends Scene {
         this.hud.triggerScreenFlash(0xffd166, 0.5);
         this.audio.play('extra_life');
         this.killsSinceLife = 0;
+        this.telemetry.recordExtraLifePickup();
         text = '+1 LIFE'; color = 0xffd166; break;
       case 'gem_sm': s.score += 100; text = '+100'; color = 0x66ffe8; break;
       case 'gem_md': s.score += 500; text = '+500'; color = 0xc566ff; break;
@@ -982,6 +1050,47 @@ export class GameScene extends Scene {
     }
   }
 
+  /** Apply a projectile's splash damage to every enemy / boss part inside
+   *  `splashRadius` of the impact, except the projectile's primary target.
+   *  Used by missiles (and any future AoE weapon) to clear tight clusters
+   *  without giving them piercing behaviour. */
+  private applyProjectileSplash(p: Projectile, primaryId: number, weapon: WeaponId | null): void {
+    const R = p.splashRadius;
+    const dmg = p.splashDamage;
+    // Loud, readable blast — see Vfx.missileBlast for the visual layers.
+    missileBlast(this.world, p.x, p.y);
+    // Enemies in range.
+    for (const e of this.world.enemies) {
+      if (!e.alive || e.id === primaryId) continue;
+      const dx = e.x - p.x;
+      const dy = e.y - p.y;
+      const reach = R + e.archetype.radius;
+      if (dx * dx + dy * dy < reach * reach) {
+        const died = e.damage(dmg);
+        if (weapon) this.telemetry.recordHit(weapon, dmg, 'enemy');
+        if (died) {
+          if (weapon) this.telemetry.recordKill(weapon);
+          this.onEnemyDeath(e);
+        }
+      }
+    }
+    // Boss hull splash (only if the primary wasn't the boss already).
+    const b = this.world.boss;
+    if (b && b.alive && !b.entering && !b.dying && b.id !== primaryId) {
+      const dx = b.x - p.x;
+      const dy = b.y - p.y;
+      const reach = R + b.radius;
+      if (dx * dx + dy * dy < reach * reach) {
+        const died = b.damageAt(p.x, p.y, dmg);
+        if (weapon) this.telemetry.recordHit(weapon, dmg, 'boss');
+        if (died) {
+          if (weapon) this.telemetry.recordKill(weapon);
+          this.onBossDeath(b);
+        }
+      }
+    }
+  }
+
   /** Smaller, localised debris (used during cascade so each sub-explosion
    *  also flings chunks). */
   private spawnDebrisChunks(cx: number, cy: number, radius: number, count: number): void {
@@ -1082,22 +1191,30 @@ export class GameScene extends Scene {
   private onEnemyDeath(e: Enemy): void {
     explosion(this.world, e.x, e.y, e.archetype.radius >= 30 ? 'md' : 'sm');
     this.state.score += e.archetype.scoreValue;
+    this.telemetry.recordEnemyKill(e.archetype.scoreValue);
     this.killsSinceHealth++;
     this.killsSinceWeapon++;
     let key = rollLoot(e.archetype.loot);
     if (this.isHealthDrop(key) && this.killsSinceHealth < 4) key = 'gem_sm';
     if (this.isWeaponDrop(key) && this.killsSinceWeapon < 5) key = 'gem_md';
-    if (this.killsSinceWeapon >= 14 && !this.isWeaponDrop(key)) key = this.pickWeightedWeaponDrop();
+    if (this.killsSinceWeapon >= 14 && !this.isWeaponDrop(key)) {
+      key = this.pickWeightedWeaponDrop();
+      this.telemetry.recordPityWeapon();
+    }
     // Guaranteed-something fallback: late-game enemies have more HP, so per
     // minute kill counts are lower. Forcing at least a small gem on every
     // kill keeps the visible drop rate flat across all 20 game levels.
     if (!key) key = 'gem_sm';
     // Re-roll any weapon drop through the inverse-level pool — variety.
-    if (key.startsWith('w_')) key = this.pickWeightedWeaponDrop();
+    if (key.startsWith('w_')) {
+      key = this.pickWeightedWeaponDrop();
+      this.telemetry.recordDropReroll();
+    }
     // Pity health — guarantee a health pickup every ~12 kills regardless of
     // which archetype died (so drone-heavy levels don't starve the player).
     if (this.killsSinceHealth >= 12 && key !== 'health_s' && key !== 'health_l') {
       key = 'health_s';
+      this.telemetry.recordPityHealth();
     }
     if (key === 'health_s' || key === 'health_l') this.killsSinceHealth = 0;
     if (key.startsWith('w_')) this.killsSinceWeapon = 0;
@@ -1119,6 +1236,7 @@ export class GameScene extends Scene {
       }
     }
     if (this.atlas.drops[key]) {
+      this.telemetry.recordDropRoll(key);
       const drift = (Math.random() - 0.5) * 30;
       const drop = this.world.dropPool.spawn(key as any, e.x, e.y, this.atlas.drops[key], this.world.layers.entities, drift);
       this.world.drops.push(drop);
@@ -1179,12 +1297,14 @@ export class GameScene extends Scene {
         this.world.drops.push(drop);
       }
     }
+    this.telemetry.endBoss(true);
     this.world.boss = b; // keep until dying animation finishes; cullDead handles it
   }
 
   private onLevelClear(): void {
     this.hud.showAnnouncement('LEVEL CLEARED', `Score ${this.state.score}`, 3.0);
     this.audio.play('level_clear');
+    this.telemetry.endActiveEncounter();
     // Slow down briefly, then advance
     this.pendingNextLevel = this.state.level + 1;
     this.pendingNextDelay = 4.0;
@@ -1195,6 +1315,7 @@ export class GameScene extends Scene {
     explosion(this.world, this.world.player.x, this.world.player.y, 'lg');
     this.world.player.detach();
     this.state.lives = Math.max(0, this.state.lives - 1);
+    this.telemetry.recordDeath(this.state.level);
     // All weapon levels reset on death — fresh start for the next life.
     resetWeaponsOnDeath(this.state);
     if (this.state.lives > 0) {
@@ -1206,8 +1327,9 @@ export class GameScene extends Scene {
     this.pendingGameOverDelay = 2.5;
   }
 
-  private onBossSpawned(_b: Boss): void {
-    this.hud.showAnnouncement('!!! BOSS !!!', _b.spec.name, 2.5);
+  private onBossSpawned(b: Boss): void {
+    this.hud.showAnnouncement('!!! BOSS !!!', b.spec.name, 2.5);
+    this.telemetry.startBoss(b.spec.key, this.state.level);
   }
 
   private onCampaignComplete(): void {
@@ -1270,6 +1392,8 @@ export class GameScene extends Scene {
     this.cullDead();
     // Score bonus
     this.state.score += 1000;
+    this.telemetry.setLevel(level);
+    this.telemetry.startLevel(level);
     this.startLevelFlow(level);
   }
 
@@ -1297,6 +1421,7 @@ export class GameScene extends Scene {
     if (this.endOverlay) return;
     stopMusic();
     this.audio.play('game_over');
+    this.telemetry.finishRun('game-over', this.state.level);
     const c = new Container();
     const bg = new Graphics();
     bg.rect(0, 0, GAME_WIDTH, GAME_HEIGHT).fill({ color: 0x000000, alpha: 0.7 });
@@ -1322,6 +1447,7 @@ export class GameScene extends Scene {
     if (this.endOverlay) return;
     stopMusic();
     this.audio.play('level_clear');
+    this.telemetry.finishRun('campaign-clear', this.state.level);
     const c = new Container();
     const bg = new Graphics();
     bg.rect(0, 0, GAME_WIDTH, GAME_HEIGHT).fill({ color: 0x000000, alpha: 0.75 });

@@ -4,6 +4,7 @@
 
 node_modules/
 dist/
+telemetry/
 
 .claude/
 .playwright-mcp/

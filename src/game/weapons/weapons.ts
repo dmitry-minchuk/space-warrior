@@ -2,6 +2,17 @@ import { Graphics } from 'pixi.js';
 import type { World } from '../world';
 import type { Player } from '../entities/Player';
 import type { WeaponId } from './types';
+import { muzzleFlash } from '../vfx/Vfx';
+
+// Per-weapon muzzle-flash accent color (kept in sync with the projectile tint).
+const MUZZLE_COLORS: Record<WeaponId, number> = {
+  pulse: 0x9bf3ff,
+  spread: 0xffe97a,
+  plasma: 0xb8ffb0,
+  missiles: 0xff8a3d,
+  wave: 0x9b9bff,
+  lightning: 0xf5fdff,
+};
 
 export interface WeaponDef {
   id: WeaponId;
@@ -22,7 +33,10 @@ export function fireBonusMissile(world: World, player: Player, dmgMul: number): 
     rotate: true,
     homingSpeed: 396,
     homingTurn: 4.4,
+    splashRadius: 40,
+    splashDamage: dmg * 0.5,
   });
+  muzzleFlash(world, player.x, player.y - 8, MUZZLE_COLORS.missiles);
 }
 
 function makeBullet(
@@ -33,7 +47,20 @@ function makeBullet(
   vy: number,
   damage: number,
   visual: 'pulse' | 'spread' | 'plasma' | 'missile' | 'wave' | 'lightning',
-  options: Partial<{ piercing: boolean; homing: boolean; wave: { amp: number; freq: number }; spin: number; scale: number; rotate: boolean; radius: number; lifetime: number; homingSpeed: number; homingTurn: number }> = {},
+  options: Partial<{
+    piercing: boolean;
+    homing: boolean;
+    wave: { amp: number; freq: number };
+    spin: number;
+    scale: number;
+    rotate: boolean;
+    radius: number;
+    lifetime: number;
+    homingSpeed: number;
+    homingTurn: number;
+    splashRadius: number;
+    splashDamage: number;
+  }> = {},
 ): void {
   const tex = world.atlas.proj[visual];
   const p = world.projectilePool.spawn({
@@ -51,6 +78,8 @@ function makeBullet(
     scale: options.scale ?? 1,
     homingSpeed: options.homingSpeed,
     homingTurn: options.homingTurn,
+    splashRadius: options.splashRadius,
+    splashDamage: options.splashDamage,
   }, world.layers.projectiles);
   world.projectiles.push(p);
 }
@@ -75,12 +104,14 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
       const n = at(counts, level);
       const dmg = at(damages, level) * dmgMul;
       // Evenly distributed streams across a small horizontal band.
+      const col = MUZZLE_COLORS.pulse;
       for (let i = 0; i < n; i++) {
         const t = n === 1 ? 0 : (i - (n - 1) / 2) / ((n - 1) / 2);
         const x = player.x + t * 16;
         const yOff = -12 - Math.abs(t) * 4;
         const vx = t * 30;
         makeBullet(world, x, player.y + yOff, vx, -800, dmg, 'pulse');
+        muzzleFlash(world, x, player.y + yOff, col);
       }
       world.audio.play('pulse', { volume: 0.15, pitch: 1 + Math.random() * 0.05 });
     },
@@ -101,6 +132,8 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
         const angle = -Math.PI / 2 + t * spread;
         makeBullet(world, player.x, player.y - 12, Math.cos(angle) * 720, Math.sin(angle) * 720, dmg, 'spread');
       }
+      // Spread fires from a single muzzle; flash sits at the fan origin.
+      muzzleFlash(world, player.x, player.y - 12, MUZZLE_COLORS.spread);
       world.audio.play('spread', { volume: 0.16, pitch: 1 + Math.random() * 0.06 });
     },
   },
@@ -113,16 +146,23 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
       const damages = [32, 22, 26, 22, 24];
       const n = at(counts, level);
       const dmg = at(damages, level) * dmgMul;
+      const col = MUZZLE_COLORS.plasma;
       if (n === 1) {
         makeBullet(world, player.x, player.y - 18, 0, -520, dmg, 'plasma', { piercing: true, radius: 14, spin: 4 });
+        muzzleFlash(world, player.x, player.y - 18, col);
       } else if (n === 2) {
         makeBullet(world, player.x - 12, player.y - 14, 0, -520, dmg, 'plasma', { piercing: true, radius: 13, spin: 4 });
         makeBullet(world, player.x + 12, player.y - 14, 0, -520, dmg, 'plasma', { piercing: true, radius: 13, spin: -4 });
+        muzzleFlash(world, player.x - 12, player.y - 14, col);
+        muzzleFlash(world, player.x + 12, player.y - 14, col);
       } else {
         // 3 orbs: center forward + 2 side
         makeBullet(world, player.x, player.y - 22, 0, -540, dmg, 'plasma', { piercing: true, radius: 14, scale: 1.05, spin: 4 });
         makeBullet(world, player.x - 16, player.y - 8, -30, -500, dmg, 'plasma', { piercing: true, radius: 11 });
         makeBullet(world, player.x + 16, player.y - 8, 30, -500, dmg, 'plasma', { piercing: true, radius: 11 });
+        muzzleFlash(world, player.x, player.y - 22, col);
+        muzzleFlash(world, player.x - 16, player.y - 8, col);
+        muzzleFlash(world, player.x + 16, player.y - 8, col);
       }
       world.audio.play('plasma', { volume: 0.22 });
     },
@@ -134,11 +174,23 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
       // counts 1/2/2/3/3, dmg per missile drops slightly so total grows gently
       const counts = [1, 2, 2, 3, 3];
       const damages = [36.4, 23.4, 28.6, 23.4, 26];
+      // Splash widens and gets heavier with level so missiles clear clusters
+      // — single direct hits used to leave neighbouring scouts/drones alive.
+      const splashRadii = [32, 36, 40, 44, 48];
+      const splashFractions = [0.5, 0.5, 0.5, 0.55, 0.6];
       const n = at(counts, level);
       const dmg = at(damages, level) * dmgMul;
+      const splashR = at(splashRadii, level);
+      const splashD = dmg * at(splashFractions, level);
+      const col = MUZZLE_COLORS.missiles;
       for (let i = 0; i < n; i++) {
         const offsetX = (i - (n - 1) / 2) * 14;
-        makeBullet(world, player.x + offsetX, player.y - 8, (Math.random() - 0.5) * 200, -396, dmg, 'missile', { homing: true, radius: 8, lifetime: 4, rotate: true, homingSpeed: 396, homingTurn: 4.4 });
+        makeBullet(world, player.x + offsetX, player.y - 8, (Math.random() - 0.5) * 200, -396, dmg, 'missile', {
+          homing: true, radius: 8, lifetime: 4, rotate: true,
+          homingSpeed: 396, homingTurn: 4.4,
+          splashRadius: splashR, splashDamage: splashD,
+        });
+        muzzleFlash(world, player.x + offsetX, player.y - 8, col);
       }
       world.audio.play('missile', { volume: 0.18 });
     },
@@ -156,6 +208,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
       const dmg = at(damages, level) * dmgMul;
       const amp = at(ampTab, level);
       const freq = at(freqTab, level);
+      const col = MUZZLE_COLORS.wave;
       for (let i = 0; i < n; i++) {
         const t = (i - (n - 1) / 2) / Math.max(1, (n - 1) / 2);
         const ampI = amp * t;
@@ -167,6 +220,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
           lifetime: 2.4,
           rotate: false,
         });
+        muzzleFlash(world, player.x + offsetX, player.y - 12, col);
       }
       world.audio.play('wave', { volume: 0.18 });
     },
@@ -186,6 +240,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
       const hit: Array<{ x: number; y: number }> = [];
       let fromX = player.x;
       let fromY = player.y - 18;
+      muzzleFlash(world, fromX, fromY, MUZZLE_COLORS.lightning);
       const visited = new Set<number>();
       for (let i = 0; i < maxChain; i++) {
         let best = null as null | { e: { id: number; alive: boolean; x: number; y: number; damage: (n: number) => boolean; radius: number }; d: number };
@@ -210,10 +265,15 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
         if (!best) break;
         visited.add(best.e.id);
         hit.push({ x: best.e.x, y: best.e.y });
+        const isBoss = !!(world.boss && best.e.id === world.boss.id);
         const died = best.e.damage(dmg);
+        // Telemetry — lightning bypasses the collision loop (it deals damage
+        // directly via `damage()`), so we register hits and kills here.
+        world.telemetry.recordHit('lightning', dmg, isBoss ? 'boss' : 'enemy');
         if (died) {
-          if (world.boss && best.e.id === world.boss.id) {
-            world.onBossKilled(world.boss);
+          world.telemetry.recordKill('lightning');
+          if (isBoss) {
+            world.onBossKilled(world.boss!);
           } else {
             world.onEnemyKilled(best.e as any);
           }

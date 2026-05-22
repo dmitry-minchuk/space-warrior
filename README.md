@@ -163,7 +163,7 @@ Enemy speed includes the global `ENEMY_SPEED_MUL = 0.8`.
 
 ### Bosses
 
-Boss HP uses tiered multipliers: 2.0x for bosses 1-5, 2.25x for bosses 6-12, 2.5x for bosses 13-17, 2.75x for bosses 18-19, and 3.0x for boss 20.
+Boss HP follows a linear curve from **1300** (boss 1) to **7000** (boss 20), +300 HP per boss. Late-game difficulty leans on phase complexity, destructible parts, and attack-pattern density rather than raw HP — boss 20 was previously 15 370 HP and turning into a sponge marathon.
 
 Phase counts per boss: bosses 1-5 use 2-3 phases (teaching their signature attack, then adding a second angle or faster rhythm), bosses 6-12 use 3 phases (base / mixed / desperation), bosses 13-19 use 4 phases (armor break, rhythm shift, multi-pattern, overload), and boss 20 is a 4-form fight (outer shell → exposed core → transformed → last stand) with visual transformation cues — colour shifts, scale pulses, and screen flashes at each transition.
 
@@ -207,25 +207,25 @@ Every boss exposes 2-4 destructible modules. Damage to a projectile is routed: i
 | Level | Boss | HP | Radius | Score |
 |---:|---|---:|---:|---:|
 | 1 | Patrol Cruiser | 1300 | 70 | 2000 |
-| 2 | Asteroid Hauler | 1800 | 80 | 2500 |
-| 3 | Cyber Crab | 2100 | 80 | 3000 |
-| 4 | Lunar Sentinel | 2400 | 80 | 3500 |
-| 5 | Hive Carrier | 2700 | 85 | 4000 |
-| 6 | Wreck Behemoth | 3375 | 90 | 4500 |
-| 7 | Mine Mother | 3713 | 90 | 5000 |
-| 8 | Ghost Sniper | 3375 | 80 | 5500 |
-| 9 | Kamikaze Queen | 3938 | 90 | 6000 |
-| 10 | Saturn Dreadnought | 4950 | 100 | 7000 |
-| 11 | Phantom | 4388 | 90 | 7500 |
-| 12 | Storm Sphere | 4950 | 95 | 8000 |
-| 13 | Blazing Citadel | 6375 | 100 | 9000 |
-| 14 | Gravity Lord | 7000 | 100 | 10000 |
-| 15 | Hive Mind | 7500 | 105 | 11000 |
-| 16 | Event Horizon | 8250 | 110 | 12000 |
-| 17 | Factory Core | 9000 | 115 | 13500 |
-| 18 | Imperial Flagship | 11550 | 120 | 15000 |
-| 19 | Citadel Guardian | 12925 | 125 | 17500 |
-| 20 | The Architect | 17400 | 130 | 25000 |
+| 2 | Asteroid Hauler | 1600 | 80 | 2500 |
+| 3 | Cyber Crab | 1900 | 80 | 3000 |
+| 4 | Lunar Sentinel | 2200 | 80 | 3500 |
+| 5 | Hive Carrier | 2500 | 85 | 4000 |
+| 6 | Wreck Behemoth | 2800 | 90 | 4500 |
+| 7 | Mine Mother | 3100 | 90 | 5000 |
+| 8 | Ghost Sniper | 3400 | 80 | 5500 |
+| 9 | Kamikaze Queen | 3700 | 90 | 6000 |
+| 10 | Saturn Dreadnought | 4000 | 100 | 7000 |
+| 11 | Phantom | 4300 | 90 | 7500 |
+| 12 | Storm Sphere | 4600 | 95 | 8000 |
+| 13 | Blazing Citadel | 4900 | 100 | 9000 |
+| 14 | Gravity Lord | 5200 | 100 | 10000 |
+| 15 | Hive Mind | 5500 | 105 | 11000 |
+| 16 | Event Horizon | 5800 | 110 | 12000 |
+| 17 | Factory Core | 6100 | 115 | 13500 |
+| 18 | Imperial Flagship | 6400 | 120 | 15000 |
+| 19 | Citadel Guardian | 6700 | 125 | 17500 |
+| 20 | The Architect | 7000 | 130 | 25000 |
 
 ### Scripted Level Load
 
@@ -236,7 +236,7 @@ This table counts scripted waves only. Passive filler enemies can add extra load
 | 1 | Earth Patrol | 100 | 9 | 46 | 1329 | 13.3 |
 | 2 | Orbital Defense | 110 | 9 | 50 | 1674 | 15.2 |
 | 3 | Asteroid Belt | 120 | 10 | 45 | 2246 | 18.7 |
-| 4 | Lunar Base | 130 | 11 | 48 | 2318 | 17.8 |
+| 4 | Lunar Base | 130 | 16 | 81 | 2894 | 22.3 |
 | 5 | Belt Outskirts | 130 | 11 | 80 | 1919 | 14.8 |
 | 6 | Abandoned Station | 130 | 11 | 38 | 2874 | 22.1 |
 | 7 | Mine Fields | 130 | 11 | 43 | 2642 | 20.3 |

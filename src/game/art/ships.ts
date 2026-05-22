@@ -30,12 +30,9 @@ function lightDot(g: Graphics, x: number, y: number, r: number, color: number): 
 // --- player ---------------------------------------------------------------
 export function drawPlayer(root: Container): void {
   const c = COL.player;
-  // Layered halo — broad emissive bloom that makes the hull pop against dark
-  softGlow(root, 0, 0, 30, c.emissive, 9);
-  softGlow(root, 0, -8, 16, c.accent, 7);
-  softGlow(root, -10, 28, 16, c.engineGlow, 7);
-  softGlow(root, 10, 28, 16, c.engineGlow, 7);
-  softGlow(root, 0, -30, 8, c.cockpitGlow, 5);
+  // No baked-in halos — the player ship reads as a clean silhouette. Engine
+  // plume is supplied at runtime by emitEngineTrail in GameScene, and weapon
+  // muzzle flashes show up only when firing.
 
   // Drop-shadow base of the silhouette — gives the ship a sense of weight
   const shadow = new Graphics();

@@ -51,7 +51,7 @@ function weaveTo(b: Boss, dt: number, amp: number, freq: number, centerY: number
   b.y += (centerY - b.y) * Math.min(1, dt * 1.5);
 }
 
-function setBossPhase(b: Boss, phase: number): void {
+function setBossPhase(b: Boss, phase: number, world?: World): void {
   if (b.phase === phase) return;
   b.phase = phase;
   b.combatTimer = 0.25;
@@ -61,6 +61,7 @@ function setBossPhase(b: Boss, phase: number): void {
   b.state.beat = 0;
   b.state.side = 0.6;
   b.state.spawn = 1.2;
+  if (world?.telemetry) world.telemetry.recordBossPhase(b.spec.key, phase);
 }
 
 function aimDir(b: Boss, world: World): { vx: number; vy: number } {
@@ -266,7 +267,7 @@ function bossPatrolCruiser(b: Boss, dt: number, world: World): void {
     { kind: 'E', id: 'E0', ox: 0, oy: 42, radius: 20, hp: Math.round(b.maxHp * 0.15) },
   ]);
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.6 ? 0 : f > 0.25 ? 1 : 2);
+  setBossPhase(b, f > 0.6 ? 0 : f > 0.25 ? 1 : 2, world);
   const engineLive = !b.state.broken_E0;
   const turretLive = !b.state.broken_T0;
   // Engine break freezes the weave so the boss becomes a sitting target.
@@ -328,7 +329,7 @@ function bossAsteroidHauler(b: Boss, dt: number, world: World): void {
   if (b.state.broken_A_top && !b.state.hullMul) b.state.hullMul = 0.5;
   const launcherLive = !b.state.broken_T_launch;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.5 ? 0 : 1);
+  setBossPhase(b, f > 0.5 ? 0 : 1, world);
   weaveTo(b, dt, 260, b.phase === 0 ? 0.4 : 0.58, 140);
   b.combatTimer -= dt;
   if (b.combatTimer <= 0) {
@@ -369,7 +370,7 @@ function bossCyberCrab(b: Boss, dt: number, world: World): void {
   const bothDown = !leftLive && !rightLive;
   const f = b.hp / b.maxHp;
   // Force desperation (phase 2) once both claws are off — the player earned it.
-  setBossPhase(b, bothDown ? 2 : f > 0.66 ? 0 : f > 0.33 ? 1 : 2);
+  setBossPhase(b, bothDown ? 2 : f > 0.66 ? 0 : f > 0.33 ? 1 : 2, world);
   b.state.phase = (b.state.phase ?? 0) + dt * 0.7;
   b.x = GAME_WIDTH / 2 + Math.sin(b.state.phase) * (b.phase === 2 ? 340 : 300);
   b.y += (160 - b.y) * Math.min(1, dt * 1.5);
@@ -414,7 +415,8 @@ function bossLunarSentinel(b: Boss, dt: number, world: World): void {
   ]);
   const chinLive = !b.state.broken_T_chin;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.5 ? 0 : 1);
+  // Earlier phase-1 trigger so the fight escalates well before HP halves.
+  setBossPhase(b, f > 0.65 ? 0 : 1, world);
   weaveTo(b, dt, 200, b.phase === 0 ? 0.45 : 0.62, 150);
   b.combatTimer -= dt;
   // Phase tracking: 0 idle / 1 charging / 2 firing
@@ -458,6 +460,48 @@ function bossLunarSentinel(b: Boss, dt: number, world: World): void {
     fireFromPoint(world, b.x + 16, b.y + 32, b.phase === 0 ? 30 : 70, 280, 7);
     b.state.mini = b.phase === 0 ? 1.3 : 1.0;
   }
+  // ---- Surprise mechanics ------------------------------------------------
+  // The old script was a stable two-pulse rhythm; the player just held a lane
+  // and chipped. These three timers inject new threats on different cadences
+  // so the fight reads as escalating beats rather than a metronome.
+
+  // Twin heavy salvo from the dorsal pod — predictive shots that punish
+  // standing still. Phase 1 throws four shots in a fan instead of two.
+  b.state.salvo = (b.state.salvo ?? 4.0) - dt;
+  if (b.state.salvo <= 0) {
+    const d = predictDir(b, world, 280);
+    const baseA = Math.atan2(d.vy, d.vx);
+    const lanes = b.phase === 0 ? 2 : 4;
+    const spread = b.phase === 0 ? 0.18 : 0.26;
+    for (let i = 0; i < lanes; i++) {
+      const t = (i - (lanes - 1) / 2) / Math.max(1, (lanes - 1) / 2);
+      const a = baseA + t * spread;
+      spawnBullet(world, b.x, b.y - 30, Math.cos(a) * 280, Math.sin(a) * 280, 14, 'enemyHeavy', 8);
+    }
+    b.state.salvo = b.phase === 0 ? 6.5 : 4.5;
+  }
+
+  // Periodic radial pulse — pushes the player out of any sticky corner. The
+  // ring telegraphs by audio and is dodgeable with one quick lateral.
+  b.state.ring = (b.state.ring ?? 5.0) - dt;
+  if (b.state.ring <= 0) {
+    const count = b.phase === 0 ? 10 : 14;
+    const speed = b.phase === 0 ? 200 : 240;
+    fireRadial(world, b, count, speed, 10, 'enemyBullet', 7, b.age * 0.4);
+    world.audio.play('boss_warning', { volume: 0.18 });
+    b.state.ring = b.phase === 0 ? 9.0 : 5.5;
+  }
+
+  // Phase 1 desperation summons — drone-shooter pair appears below the boss
+  // to flank the player. Adds spatial pressure while sweep + ring keep firing.
+  if (b.phase === 1) {
+    b.state.summon = (b.state.summon ?? 8.0) - dt;
+    if (b.state.summon <= 0) {
+      spawnMinion(world, 'drone-shooter', b.x - 80, b.y + 50);
+      spawnMinion(world, 'drone-shooter', b.x + 80, b.y + 50);
+      b.state.summon = 14.0;
+    }
+  }
 }
 
 // ---- 5: Hive Carrier — constant drone spawn + side turrets + bays -------
@@ -471,7 +515,8 @@ function bossHiveCarrier(b: Boss, dt: number, world: World): void {
   const hatchLive = !b.state.broken_H_hatch;
   const deckLive = !b.state.broken_T_deck;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.66 ? 0 : f > 0.33 ? 1 : 2);
+  // Wider/earlier phase-2 trigger so desperation engages before HP drains.
+  setBossPhase(b, f > 0.7 ? 0 : f > 0.4 ? 1 : 2, world);
   weaveTo(b, dt, b.phase === 2 ? 320 : 280, 0.45 + b.phase * 0.1, 150);
   // Drone production — gated by H_hatch.
   b.state.spawn = (b.state.spawn ?? 0) - dt;
@@ -515,7 +560,7 @@ function bossWreckBehemoth(b: Boss, dt: number, world: World): void {
   const leftLive = !b.state.broken_T_left;
   const rightLive = !b.state.broken_T_right;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2);
+  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2, world);
   const amp = b.phase === 0 ? 220 : b.phase === 1 ? 280 : 340;
   const freq = b.phase === 0 ? 0.28 : b.phase === 1 ? 0.38 : 0.5;
   weaveTo(b, dt, amp, freq, 160);
@@ -558,7 +603,7 @@ function bossMineMother(b: Boss, dt: number, world: World): void {
   const drillLive = !b.state.broken_T_drill;
   const mineLaunchers = (b.state.broken_H_left ? 0 : 1) + (b.state.broken_H_right ? 0 : 1);
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2);
+  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2, world);
   weaveTo(b, dt, 260, b.phase === 0 ? 0.35 : b.phase === 1 ? 0.5 : 0.7, 170);
   // Drill core fires a beam-like volley — gated by T_drill.
   b.state.beam = (b.state.beam ?? 0) - dt;
@@ -715,7 +760,7 @@ function bossKamikazeQueen(b: Boss, dt: number, world: World): void {
   const rightPodLive = !b.state.broken_H_right;
   const podLive = (leftPodLive ? 1 : 0) + (rightPodLive ? 1 : 0);
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2);
+  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2, world);
   weaveTo(b, dt, b.phase === 0 ? 280 : b.phase === 1 ? 340 : 400, b.phase === 0 ? 0.45 : b.phase === 1 ? 0.6 : 0.8, 140);
   // Spawn kamikaze waves — only live pods participate.
   b.combatTimer -= dt;
@@ -763,7 +808,7 @@ function bossSaturnDreadnought(b: Boss, dt: number, world: World): void {
   const missLeftLive = !b.state.broken_M_left;
   const missRightLive = !b.state.broken_M_right;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2);
+  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2, world);
   weaveTo(b, dt, 240, b.phase === 0 ? 0.32 : b.phase === 1 ? 0.45 : 0.6, 180);
   // 4 main turrets — independent of parts (hull-mounted).
   b.combatTimer -= dt;
@@ -817,7 +862,7 @@ function bossPhantom(b: Boss, dt: number, world: World): void {
   const phaseGenLive = !b.state.broken_S_phase;
   const emitterLive = !b.state.broken_T_emitter;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2);
+  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2, world);
   // Visibility cycle only runs while the phase generator is alive.
   if (phaseGenLive) {
     b.state.cyc = (b.state.cyc ?? 0) + dt;
@@ -862,7 +907,7 @@ function bossStormSphere(b: Boss, dt: number, world: World): void {
   const shellLive = !b.state.broken_S_shell;
   const aimerLive = !b.state.broken_T_aimer;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2);
+  setBossPhase(b, f > 0.6 ? 0 : f > 0.3 ? 1 : 2, world);
   weaveTo(b, dt, 200, b.phase === 0 ? 0.4 : b.phase === 1 ? 0.55 : 0.75, 170);
   // 8 tesla coil tips fire radially. Counter-rotating ring requires the shell.
   b.combatTimer -= dt;
@@ -918,7 +963,7 @@ function bossBlazingCitadel(b: Boss, dt: number, world: World): void {
   const leftMortarLive = !b.state.broken_T_left_mortar;
   const rightMortarLive = !b.state.broken_T_right_mortar;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3);
+  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3, world);
   if (engineLive) {
     weaveTo(b, dt, 240, b.phase === 0 ? 0.3 : b.phase === 1 ? 0.4 : b.phase === 2 ? 0.5 : 0.65, 170);
   } else {
@@ -982,7 +1027,7 @@ function bossGravityLord(b: Boss, dt: number, world: World): void {
   const platLeftLive = !b.state.broken_T_left;
   const platRightLive = !b.state.broken_T_right;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3);
+  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3, world);
   weaveTo(b, dt, 240, b.phase === 0 ? 0.32 : b.phase === 1 ? 0.42 : b.phase === 2 ? 0.55 : 0.7, 180);
   // Spiral fire — hull-driven, always fires.
   b.combatTimer -= dt;
@@ -1044,7 +1089,7 @@ function bossHiveMind(b: Boss, dt: number, world: World): void {
   const neuralLive = !b.state.broken_P_neural;
   const sporeLive = !b.state.broken_T_spore;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3);
+  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3, world);
   weaveTo(b, dt, 220, b.phase === 0 ? 0.38 : b.phase === 1 ? 0.5 : b.phase === 2 ? 0.62 : 0.8, 170);
   // Drone summoning — gated by H_spawner.
   b.state.spawn = (b.state.spawn ?? 0) - dt;
@@ -1103,7 +1148,7 @@ function bossEventHorizon(b: Boss, dt: number, world: World): void {
   const rightCannonLive = !b.state.broken_T_right;
   const shieldLive = !b.state.broken_S_event;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3);
+  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3, world);
   weaveTo(b, dt, 260, b.phase === 0 ? 0.3 : b.phase === 1 ? 0.4 : b.phase === 2 ? 0.5 : 0.65, 170);
   // Multi-spiral — second/third spirals unlock at higher phases. The dense
   // outer wall (phase 2+) is shield-fed and dies with it.
@@ -1170,7 +1215,7 @@ function bossFactoryCore(b: Boss, dt: number, world: World): void {
   const cornerLeftLive = !b.state.broken_T_corner_left;
   const cornerRightLive = !b.state.broken_T_corner_right;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3);
+  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3, world);
   weaveTo(b, dt, 200, b.phase === 0 ? 0.28 : b.phase === 1 ? 0.4 : b.phase === 2 ? 0.55 : 0.7, 180);
   // Elite production — gated by H_factory.
   b.state.spawn = (b.state.spawn ?? 0) - dt;
@@ -1234,7 +1279,7 @@ function bossImperialFlagship(b: Boss, dt: number, world: World): void {
   const clusterLive = !b.state.broken_T_cluster;
   const engineLive = !b.state.broken_E_bank;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3);
+  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3, world);
   if (engineLive) {
     weaveTo(b, dt, 200, b.phase === 0 ? 0.25 : b.phase === 1 ? 0.34 : b.phase === 2 ? 0.46 : 0.6, 170);
   } else {
@@ -1303,7 +1348,7 @@ function bossCitadelGuardian(b: Boss, dt: number, world: World): void {
   const perRightLive = !b.state.broken_T_per_right;
   const eyeLive = !b.state.broken_P_eye;
   const f = b.hp / b.maxHp;
-  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3);
+  setBossPhase(b, f > 0.7 ? 0 : f > 0.45 ? 1 : f > 0.2 ? 2 : 3, world);
   weaveTo(b, dt, 220, b.phase === 0 ? 0.35 : b.phase === 1 ? 0.5 : b.phase === 2 ? 0.65 : 0.85, 170);
   // Perimeter turret beat — each diametric pair is left or right side.
   b.combatTimer -= dt;
@@ -1501,19 +1546,19 @@ function bossArchitect(b: Boss, dt: number, world: World): void {
 
 export function buildBossSpecs(atlas: Atlas): BossSpec[] {
   const t = atlas.bosses;
-  // Tiered HP multiplier. Boss danger should come from phases and attack
-  // readability rather than one large global HP sponge multiplier.
-  const hpK = (i: number): number =>
-    i < 5 ? 2.0 :
-    i < 12 ? 2.25 :
-    i < 17 ? 2.5 :
-    i < 19 ? 2.75 :
-    3.0;
-  const make = (i: number, name: string, hp: number, radius: number, score: number, update: BossSpec['update'], loot: string[] = []): BossSpec => ({
+  // Linear HP curve from 1300 (boss 1) to 7000 (boss 20). Replaces the older
+  // per-boss base × tier-multiplier scheme — keeps late-game fights from
+  // turning into HP-sponge marathons (was 15 370 on boss 20). Difficulty in
+  // the late tiers now leans entirely on phase complexity and destructible
+  // parts, not raw HP.
+  const HP_START = 1300;
+  const HP_END = 7000;
+  const hpFor = (i: number): number => Math.round(HP_START + (HP_END - HP_START) * (i / 19));
+  const make = (i: number, name: string, radius: number, score: number, update: BossSpec['update'], loot: string[] = []): BossSpec => ({
     key: `boss-${i + 1}`,
     name,
     texture: t[i],
-    maxHp: Math.round(hp * hpK(i)),
+    maxHp: hpFor(i),
     radius,
     scoreValue: score,
     entryY: 140 + i * 2,
@@ -1521,25 +1566,25 @@ export function buildBossSpecs(atlas: Atlas): BossSpec[] {
     loot: ['health_l', ...loot],
   });
   return [
-    make(0, 'Patrol Cruiser', 650, 70, 2000, bossPatrolCruiser, ['w_pulse']),
-    make(1, 'Asteroid Hauler', 900, 80, 2500, bossAsteroidHauler, ['w_spread']),
-    make(2, 'Cyber Crab', 1050, 80, 3000, bossCyberCrab, ['w_plasma']),
-    make(3, 'Lunar Sentinel', 1200, 80, 3500, bossLunarSentinel, ['w_wave']),
-    make(4, 'Hive Carrier', 1350, 85, 4000, bossHiveCarrier, ['w_missiles']),
-    make(5, 'Wreck Behemoth', 1500, 90, 4500, bossWreckBehemoth, ['w_wave']),
-    make(6, 'Mine Mother', 1650, 90, 5000, bossMineMother, ['w_lightning']),
-    make(7, 'Ghost Sniper', 1500, 80, 5500, bossGhostSniper, ['w_pulse', 'shield']),
-    make(8, 'Kamikaze Queen', 1750, 90, 6000, bossKamikazeQueen, ['w_spread', 'damage']),
-    make(9, 'Saturn Dreadnought', 2200, 100, 7000, bossSaturnDreadnought, ['w_plasma', 'shield']),
-    make(10, 'Phantom', 1950, 90, 7500, bossPhantom, ['w_wave', 'shield']),
-    make(11, 'Storm Sphere', 2200, 95, 8000, bossStormSphere, ['w_lightning', 'damage']),
-    make(12, 'Blazing Citadel', 2550, 100, 9000, bossBlazingCitadel, ['w_missiles', 'damage']),
-    make(13, 'Gravity Lord', 2800, 100, 10000, bossGravityLord, ['w_wave', 'damage']),
-    make(14, 'Hive Mind', 3000, 105, 11000, bossHiveMind, ['w_spread', 'shield']),
-    make(15, 'Event Horizon', 3300, 110, 12000, bossEventHorizon, ['w_lightning', 'damage']),
-    make(16, 'Factory Core', 3600, 115, 13500, bossFactoryCore, ['w_plasma', 'shield']),
-    make(17, 'Imperial Flagship', 4200, 120, 15000, bossImperialFlagship, ['w_missiles', 'shield', 'damage']),
-    make(18, 'Citadel Guardian', 4700, 125, 17500, bossCitadelGuardian, ['w_wave', 'shield', 'damage']),
-    make(19, 'The Architect', 5800, 130, 25000, bossArchitect, ['w_plasma', 'w_wave', 'w_lightning', 'shield', 'damage']),
+    make(0, 'Patrol Cruiser', 70, 2000, bossPatrolCruiser, ['w_pulse']),
+    make(1, 'Asteroid Hauler', 80, 2500, bossAsteroidHauler, ['w_spread']),
+    make(2, 'Cyber Crab', 80, 3000, bossCyberCrab, ['w_plasma']),
+    make(3, 'Lunar Sentinel', 80, 3500, bossLunarSentinel, ['w_wave']),
+    make(4, 'Hive Carrier', 85, 4000, bossHiveCarrier, ['w_missiles']),
+    make(5, 'Wreck Behemoth', 90, 4500, bossWreckBehemoth, ['w_wave']),
+    make(6, 'Mine Mother', 90, 5000, bossMineMother, ['w_lightning']),
+    make(7, 'Ghost Sniper', 80, 5500, bossGhostSniper, ['w_pulse', 'shield']),
+    make(8, 'Kamikaze Queen', 90, 6000, bossKamikazeQueen, ['w_spread', 'damage']),
+    make(9, 'Saturn Dreadnought', 100, 7000, bossSaturnDreadnought, ['w_plasma', 'shield']),
+    make(10, 'Phantom', 90, 7500, bossPhantom, ['w_wave', 'shield']),
+    make(11, 'Storm Sphere', 95, 8000, bossStormSphere, ['w_lightning', 'damage']),
+    make(12, 'Blazing Citadel', 100, 9000, bossBlazingCitadel, ['w_missiles', 'damage']),
+    make(13, 'Gravity Lord', 100, 10000, bossGravityLord, ['w_wave', 'damage']),
+    make(14, 'Hive Mind', 105, 11000, bossHiveMind, ['w_spread', 'shield']),
+    make(15, 'Event Horizon', 110, 12000, bossEventHorizon, ['w_lightning', 'damage']),
+    make(16, 'Factory Core', 115, 13500, bossFactoryCore, ['w_plasma', 'shield']),
+    make(17, 'Imperial Flagship', 120, 15000, bossImperialFlagship, ['w_missiles', 'shield', 'damage']),
+    make(18, 'Citadel Guardian', 125, 17500, bossCitadelGuardian, ['w_wave', 'shield', 'damage']),
+    make(19, 'The Architect', 130, 25000, bossArchitect, ['w_plasma', 'w_wave', 'w_lightning', 'shield', 'damage']),
   ];
 }

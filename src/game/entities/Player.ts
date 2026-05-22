@@ -31,14 +31,12 @@ export class Player {
   bonusMissileTimer = 0;
   // Cosmetic: engine trail emitter rate
   trailTimer = 0;
-  // Time accumulator used to drive flame flicker and aura pulse.
+  // Time accumulator used to drive engine flame flicker.
   flickerT = 0;
 
   sprite: Sprite;
   hitRadius = 14;
   shieldSprite: Graphics;
-  // Live-redrawn pulsing emissive halo under the ship.
-  aura: Graphics;
   // Live-redrawn twin engine plumes, flickering with thrust state.
   engineFlame: Graphics;
 
@@ -47,7 +45,6 @@ export class Player {
     this.sprite.anchor.set(0.5);
     this.shieldSprite = new Graphics();
     this.shieldSprite.visible = false;
-    this.aura = new Graphics();
     this.engineFlame = new Graphics();
   }
 
@@ -60,8 +57,7 @@ export class Player {
     this.alive = true;
     this.iframes = 1.5;
     this.fireTimer = 0;
-    // Layering: aura under sprite, engine flame over sprite (so plume sits in front of nozzle), shield on top.
-    layer.addChild(this.aura);
+    // Layering: sprite, engine flame on top (plume sits in front of nozzle), shield on top.
     layer.addChild(this.sprite);
     layer.addChild(this.engineFlame);
     layer.addChild(this.shieldSprite);
@@ -71,7 +67,6 @@ export class Player {
   detach(): void {
     if (this.sprite.parent) this.sprite.parent.removeChild(this.sprite);
     if (this.shieldSprite.parent) this.shieldSprite.parent.removeChild(this.shieldSprite);
-    if (this.aura.parent) this.aura.parent.removeChild(this.aura);
     if (this.engineFlame.parent) this.engineFlame.parent.removeChild(this.engineFlame);
   }
 
@@ -163,17 +158,6 @@ export class Player {
     }
     this.engineFlame.position.set(this.x, this.y);
     this.engineFlame.rotation = this.sprite.rotation;
-
-    // --- Live aura halo (independent of rotation) ----------------------------
-    const pulse = 0.5 + 0.5 * Math.sin(this.flickerT * 4);
-    this.aura.clear();
-    // Broad outer wash
-    this.aura.circle(0, 0, 40).fill({ color: 0x39c6ff, alpha: 0.05 * alpha });
-    this.aura.circle(0, 0, 30 + 4 * pulse).fill({ color: 0x6ed8ff, alpha: 0.09 * alpha });
-    this.aura.circle(0, 0, 22 + 3 * pulse).fill({ color: 0x9bf3ff, alpha: 0.12 * alpha });
-    // Soft thin ring marker — the “stabiliser field”
-    this.aura.circle(0, 0, 26 + 2 * pulse).stroke({ color: 0xc4e2ff, width: 1.1, alpha: (0.25 + 0.2 * pulse) * alpha });
-    this.aura.position.set(this.x, this.y);
 
     if (this.fireTimer > 0) this.fireTimer -= dt;
     if (this.bonusMissileTimer > 0) this.bonusMissileTimer -= dt;

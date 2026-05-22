@@ -76,14 +76,21 @@ export const LEVELS: LevelData[] = [
     waves: [
       w(3, 'fighter', 4, 'v'),
       w(12, 'interceptor', 3, 'arc'),
+      // Filler — keeps the playfield from going empty between heavy waves.
+      // L4 was the slowest level by telemetry (0.14 kills/s vs L3's 0.28).
+      w(17, 'scout', 6, 'swarm'),
       w(22, 'scout-shooter', 6, 'line'),
       w(34, 'bomber-captain', 2, 'v'),
+      w(40, 'drone-shooter', 5, 'line'),
       w(46, 'interceptor-ace', 3, 'arc'),
       w(58, 'fighter-pincer', 5, 'sides'),
+      w(64, 'scout-bouncer', 6, 'random'),
       w(70, 'interceptor-ace', 4, 'v'),
       w(82, 'bomber', 3, 'line'),
+      w(88, 'drone', 7, 'swarm'),
       w(94, 'scout-ambusher', 8, 'random'),
       w(106, 'interceptor-ace', 5, 'arc'),
+      w(112, 'scout-shooter', 6, 'arc'),
       w(118, 'fighter-pincer', 5, 'sides'),
     ],
   },

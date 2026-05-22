@@ -203,6 +203,36 @@ export function drawBomb(root: Container): void {
   });
 }
 
+// ---- extra life ----------------------------------------------------------
+// Rare 1-up. Gold halo + small ship silhouette inside a heart frame, so the
+// player can recognise it instantly even on a busy screen.
+export function drawExtraLife(root: Container): void {
+  // Larger soft glow than other drops — readability over the noise.
+  softGlow(root, 0, 0, 28, 0xffd166, 10);
+  softGlow(root, 0, 0, 18, 0xffffff, 6);
+  capsuleFrame(root, 0x3a2a08, 0xffd166, (g) => {
+    // Heart silhouette as backplate
+    g.moveTo(0, 10);
+    g.bezierCurveTo(-12, 2, -11, -10, -4, -10);
+    g.bezierCurveTo(-1, -10, 0, -7, 0, -5);
+    g.bezierCurveTo(0, -7, 1, -10, 4, -10);
+    g.bezierCurveTo(11, -10, 12, 2, 0, 10);
+    g.fill(0xff4d6a);
+    g.moveTo(0, 10);
+    g.bezierCurveTo(-12, 2, -11, -10, -4, -10);
+    g.bezierCurveTo(-1, -10, 0, -7, 0, -5);
+    g.bezierCurveTo(0, -7, 1, -10, 4, -10);
+    g.bezierCurveTo(11, -10, 12, 2, 0, 10);
+    g.stroke({ color: 0xffffff, width: 1.2, alpha: 0.95 });
+    // Tiny player-ship silhouette in the centre
+    g.poly([0, -5, 5, 2, 3, 4, 0, 2, -3, 4, -5, 2]).fill(0xffffff);
+    g.poly([0, -5, 5, 2, 3, 4, 0, 2, -3, 4, -5, 2]).stroke({ color: 0xffd166, width: 0.8, alpha: 0.9 });
+    // "1UP" pip lights at top corners
+    g.circle(-6, -8, 1.2).fill(0xffffff);
+    g.circle(6, -8, 1.2).fill(0xffffff);
+  });
+}
+
 export function drawGem(root: Container, size: 'sm' | 'md' | 'lg'): void {
   const k = size === 'sm' ? 0.7 : size === 'md' ? 0.95 : 1.2;
   const color = size === 'lg' ? 0xffd166 : size === 'md' ? 0xc566ff : 0x66ffe8;

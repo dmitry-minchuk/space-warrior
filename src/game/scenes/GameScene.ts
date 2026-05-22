@@ -67,6 +67,9 @@ export class GameScene extends Scene {
   killsSinceHealth = 0;
   // Same idea for weapons, with a small cooldown to avoid front-loaded clumps.
   killsSinceWeapon = 0;
+  // Extra-life pity: tracks total enemies killed since the last 1-up dropped,
+  // so the rare-roll path does not stack into a 1-up famine across a whole run.
+  killsSinceLife = 0;
   // Game-time scheduled actions (replaces setTimeout, so timing stays
   // in sync with the boss dying animation regardless of frame hiccups).
   deferredActions: Array<{ at: number; fn: () => void }> = [];
@@ -222,19 +225,25 @@ export class GameScene extends Scene {
     this.background.update(dt);
 
     // Update player
-    const speedMul = this.state.speedBoostT > 0 ? 1.3 : 1;
+    const speedMul = this.state.speedBoostT > 0 ? 1.55 : 1;
     if (this.world.player.alive) {
       this.world.player.update(dt, speedMul);
       this.handlePlayerFire(dt);
       this.handlePlayerBomb();
       // Engine trail — cap rate and skip when the particle pool is busy so a
-      // dense fight doesn't drown the GPU in tiny additive sprites.
+      // dense fight doesn't drown the GPU in tiny additive sprites. While the
+      // speed boost is active we emit twice as often and add a third central
+      // jet so the afterburn reads as visibly stronger.
       this.world.player.trailTimer -= dt;
       if (this.world.player.trailTimer <= 0) {
-        this.world.player.trailTimer = 0.028;
+        const boosting = this.state.speedBoostT > 0;
+        this.world.player.trailTimer = boosting ? 0.014 : 0.028;
         if (this.world.particles.length < 280) {
           emitEngineTrail(this.world, this.world.player.x - 10, this.world.player.y + 24);
           emitEngineTrail(this.world, this.world.player.x + 10, this.world.player.y + 24);
+          if (boosting) {
+            emitEngineTrail(this.world, this.world.player.x, this.world.player.y + 28);
+          }
         }
       }
     }
@@ -685,14 +694,20 @@ export class GameScene extends Scene {
         s.shieldHp = 100; this.hud.triggerScreenFlash(0x4eaaff, 0.3);
         text = 'SHIELD'; color = 0x4eaaff; break;
       case 'speed':
-        s.speedBoostT = 15; this.hud.triggerScreenFlash(0x6cff7a, 0.25);
-        text = '+SPEED 15s'; color = 0x6bff8a; break;
+        s.speedBoostT = 18; this.hud.triggerScreenFlash(0x6cff7a, 0.3);
+        text = '+SPEED 1.55× 18s'; color = 0x6bff8a; break;
       case 'damage':
         s.damageBoostT = 10; this.hud.triggerScreenFlash(0xff5050, 0.25);
         text = '2× DAMAGE 10s'; color = 0xff5050; break;
       case 'bomb':
         s.bombs = Math.min(5, s.bombs + 1);
         text = '+1 BOMB'; color = 0xffd166; break;
+      case 'extra_life':
+        s.lives = Math.min(9, s.lives + 1);
+        this.hud.triggerScreenFlash(0xffd166, 0.5);
+        this.audio.play('extra_life');
+        this.killsSinceLife = 0;
+        text = '+1 LIFE'; color = 0xffd166; break;
       case 'gem_sm': s.score += 100; text = '+100'; color = 0x66ffe8; break;
       case 'gem_md': s.score += 500; text = '+500'; color = 0xc566ff; break;
       case 'gem_lg': s.score += 2000; text = '+2000'; color = 0xffd166; break;
@@ -1070,6 +1085,23 @@ export class GameScene extends Scene {
     }
     if (key === 'health_s' || key === 'health_l') this.killsSinceHealth = 0;
     if (key.startsWith('w_')) this.killsSinceWeapon = 0;
+    // Rare 1-up substitution. Only swaps a gem (never a health/weapon/utility
+    // drop), only on enemies that scored ≥120 (drone/scout/kamikaze excluded
+    // so the 1-up rate doesn't pile up on swarm levels), and only if the
+    // player isn't already capped at 9 lives. Probability ramps with the pity
+    // counter so a 1-up turns up at least once per ~3–4 levels of dense play.
+    this.killsSinceLife++;
+    if (
+      this.state.lives < 9 &&
+      e.archetype.scoreValue >= 120 &&
+      (key === 'gem_sm' || key === 'gem_md' || key === 'gem_lg')
+    ) {
+      const base = 0.006; // ≈1 per ~170 qualifying kills
+      const pity = Math.max(0, this.killsSinceLife - 220) * 0.0008; // soft ramp
+      if (Math.random() < base + pity) {
+        key = 'extra_life';
+      }
+    }
     if (this.atlas.drops[key]) {
       const drift = (Math.random() - 0.5) * 30;
       const drop = this.world.dropPool.spawn(key as any, e.x, e.y, this.atlas.drops[key], this.world.layers.entities, drift);
@@ -1108,15 +1140,23 @@ export class GameScene extends Scene {
     }
 
     this.state.score += b.spec.scoreValue;
+    // Boss 1-up policy: milestone bosses (levels 5/10/15/20) always grant a
+    // 1-up; other bosses roll for it at ~25%. Either way, capped at lives < 9.
+    const lvl = this.state.level;
+    const milestone = lvl === 5 || lvl === 10 || lvl === 15 || lvl === 20;
+    const loot = b.spec.loot ? b.spec.loot.slice() : [];
+    if (this.state.lives < 9 && (milestone || Math.random() < 0.25)) {
+      loot.push('extra_life');
+    }
     // Drops — slow drift so they linger on screen ~3× longer than before.
     // Boost both `life` and `blinkFrom` so age-cap doesn't trim the slow fall.
-    if (b.spec.loot) {
-      for (let i = 0; i < b.spec.loot.length; i++) {
-        let k = b.spec.loot[i];
+    if (loot.length > 0) {
+      for (let i = 0; i < loot.length; i++) {
+        let k = loot[i];
         if (k.startsWith('w_')) k = this.pickWeightedWeaponDrop();
         const tex = this.atlas.drops[k];
         if (!tex) continue;
-        const drop = this.world.dropPool.spawn(k as any, b.x + (i - b.spec.loot.length / 2) * 36, b.y + 20, tex, this.world.layers.entities, (Math.random() - 0.5) * 30);
+        const drop = this.world.dropPool.spawn(k as any, b.x + (i - loot.length / 2) * 36, b.y + 20, tex, this.world.layers.entities, (Math.random() - 0.5) * 30);
         drop.vy = 55 + Math.random() * 20;   // ~1/3 of the prior boss-drop fall speed
         drop.life = 45;                       // 3× default 15s
         drop.blinkFrom = 38;                  // 3× default 12s

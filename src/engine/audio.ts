@@ -133,6 +133,15 @@ sounds.pickup = (o) => {
   envOsc('triangle', 880, 1320, 0.1, 0.15 * (o.volume ?? 1), uiGain!);
   envOsc('sine', 1760, 2200, 0.08, 0.1 * (o.volume ?? 1), uiGain!);
 };
+sounds.extra_life = (o) => {
+  // Classic 1-up: rising triplet with a sparkly overlay so it cuts through
+  // combat without being abrasive.
+  const v = (o.volume ?? 1) * 0.32;
+  envOsc('triangle', 660, 990, 0.10, v, uiGain!);
+  setTimeout(() => envOsc('triangle', 990, 1320, 0.10, v, uiGain!), 110);
+  setTimeout(() => envOsc('triangle', 1320, 1980, 0.22, v, uiGain!), 230);
+  setTimeout(() => envOsc('sine', 2640, 3000, 0.12, v * 0.7, uiGain!), 230);
+};
 sounds.player_hit = (o) => {
   envNoise(0.15, 0.25 * (o.volume ?? 1), sfxGain!, 800, 80);
   envOsc('square', 320, 80, 0.12, 0.18 * (o.volume ?? 1), sfxGain!);

@@ -179,6 +179,12 @@ export class Projectile {
     }
     if (this.spin) this.sprite.rotation += this.spin * dt;
     if (this.rotateToVelocity) this.sprite.rotation = Math.atan2(this.vy, this.vx) + Math.PI / 2;
+    // Mines: gentle "breathing" pulse so the silhouette stays readable on a
+    // busy screen. Keeps the collision radius intact (visual only).
+    if (this.visual === 'mine') {
+      const pulse = 1 + Math.sin(this.age * 5.5) * 0.12;
+      this.sprite.scale.set(pulse);
+    }
     this.sprite.position.set(this.x, this.y);
     // Out of bounds: kill (with margin)
     if (

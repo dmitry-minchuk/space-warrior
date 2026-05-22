@@ -504,3 +504,26 @@ export const combatHeavyBreaker: CombatUpdater = (e, dt, world) => {
   }
   e.combatState++;
 };
+
+// Alternating diagonal lanes: one beat fires a pair of shots biased to the
+// left lane, the next beat biases right. When several enemies share a wave
+// formation the lanes weave into a readable braid the player can slip through.
+export const combatAlternatingLanes: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  if (e.combatTimer > 0) return;
+  const side = e.combatState % 2 === 0 ? -1 : 1;
+  fireAtAngle(world, e, Math.PI / 2 + side * 0.45, 240, 6);
+  fireAtAngle(world, e, Math.PI / 2 + side * 0.22, 240, 6);
+  e.combatTimer = 0.85;
+  e.combatState++;
+};
+
+// Slow suppressive wave: a wide, slow fan of weak shots that drifts down as
+// an area-denial wall. Long cooldown so it never overwhelms — the threat is
+// in positioning, not raw DPS.
+export const combatSuppressiveWave: CombatUpdater = (e, dt, world) => {
+  e.combatTimer -= dt;
+  if (e.combatTimer > 0) return;
+  fireFan(world, e, Math.PI / 2, 7, 1.0, 170, 5, 'enemyBullet', 6);
+  e.combatTimer = 4.0;
+};

@@ -16,6 +16,7 @@ import {
 } from './movement';
 import {
   combatAimed,
+  combatAlternatingLanes,
   combatBombFanPressure,
   combatChainLightning,
   combatCommanderFighter,
@@ -32,6 +33,7 @@ import {
   combatScoutAmbush,
   combatSniperAce,
   combatSpread5,
+  combatSuppressiveWave,
   combatSweep,
   combatTeslaWeaver,
   combatTurretCrossfire,
@@ -550,6 +552,37 @@ export function buildArchetypes(atlas: Atlas): Record<string, EnemyArchetype> {
       movementUpdate: moveBouncer,
       combatUpdate: combatNone,
       loot: lootScout,
+    },
+    // Drone Lane — slow descending drone that fires alternating diagonal lanes.
+    // Best used in a line/v formation: lanes weave into a readable braid.
+    'drone-lane': {
+      key: 'drone-lane',
+      texture: atlas.enemies.drone,
+      hp: 18,
+      radius: 14,
+      speed: 110,
+      scoreValue: 80,
+      contactDamage: 7,
+      visualKey: 'drone',
+      movementUpdate: movePath,
+      combatUpdate: combatAlternatingLanes,
+      loot: lootDrone,
+      spinSelf: 1.4,
+    },
+    // Heavy Suppressor — slow heavy that drops a wide slow wave of weak shots
+    // as area denial. Threat is positional, not raw DPS.
+    'heavy-suppressor': {
+      key: 'heavy-suppressor',
+      texture: atlas.enemies.heavy,
+      hp: 200,
+      radius: 36,
+      speed: 60,
+      scoreValue: 420,
+      contactDamage: 18,
+      visualKey: 'heavy',
+      movementUpdate: moveStraight,
+      combatUpdate: combatSuppressiveWave,
+      loot: lootHeavy,
     },
   };
   // Apply global speed multiplier

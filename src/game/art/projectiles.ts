@@ -152,55 +152,70 @@ export function drawEnemyBomb(root: Container): void {
 
 // Naval-style spike mine: dark metal sphere with 8 prominent spikes, segmented
 // hull panels, a pulsing sensor eye in the centre, and warning hazard chevrons.
+// Readability layers in the baked texture: outer red-orange warning halo,
+// inner gold halo, then the mine itself with enlarged spikes.
 export function drawMine(root: Container): void {
-  softGlow(root, 0, 0, 16, PROJ.enemyMine, 7);
+  // Outer "danger" halo — red-orange, large, soft. This is the primary signal
+  // the player can read at a glance, even on busy backgrounds.
+  softGlow(root, 0, 0, 26, 0xff3a2a, 8);
+  // Inner gold halo — adds saturation and bridges to the body colour.
+  softGlow(root, 0, 0, 18, PROJ.enemyMine, 8);
   const g = new Graphics();
-  // 8 long spikes (drawn first so the body sits in front of their bases)
+  // Dashed "stop" warning ring around the spikes (4 thick arc segments)
+  for (let i = 0; i < 4; i++) {
+    const a0 = i * (Math.PI / 2) + 0.15;
+    const a1 = a0 + (Math.PI / 2) - 0.30;
+    g.arc(0, 0, 18, a0, a1).stroke({ color: 0xff3a2a, width: 1.8, alpha: 0.7 });
+  }
+  // 8 long spikes (drawn first so the body sits in front of their bases).
+  // Tips slightly wider and tipped with a bright cap so they catch the eye.
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
-    const baseR = 7;
-    const tipR = 13;
+    const baseR = 8;
+    const tipR = 16;
     const sideR = baseR + 0.5;
-    // Tip
     const tx = Math.cos(a) * tipR;
     const ty = Math.sin(a) * tipR;
-    // Two base points perpendicular to the spike direction
     const perpA = a + Math.PI / 2;
-    const b1x = Math.cos(a) * sideR + Math.cos(perpA) * 1.6;
-    const b1y = Math.sin(a) * sideR + Math.sin(perpA) * 1.6;
-    const b2x = Math.cos(a) * sideR - Math.cos(perpA) * 1.6;
-    const b2y = Math.sin(a) * sideR - Math.sin(perpA) * 1.6;
+    const b1x = Math.cos(a) * sideR + Math.cos(perpA) * 1.9;
+    const b1y = Math.sin(a) * sideR + Math.sin(perpA) * 1.9;
+    const b2x = Math.cos(a) * sideR - Math.cos(perpA) * 1.9;
+    const b2y = Math.sin(a) * sideR - Math.sin(perpA) * 1.9;
     g.poly([b1x, b1y, tx, ty, b2x, b2y]).fill(0x4a4a52);
-    g.poly([b1x, b1y, tx, ty, b2x, b2y]).stroke({ color: 0x10080a, width: 0.7 });
-    // Highlight on lit side of spike
+    g.poly([b1x, b1y, tx, ty, b2x, b2y]).stroke({ color: 0x10080a, width: 0.8 });
+    // Bright cap at the tip — high-contrast yellow dot
+    g.circle(tx, ty, 1.4).fill(0xffe066);
+    g.circle(tx, ty, 0.7).fill(0xffffff);
+    // Highlight on lit side
     const litx = (b1x + tx) / 2 - Math.cos(a) * 0.5;
     const lity = (b1y + ty) / 2 - Math.sin(a) * 0.5;
-    g.circle(litx, lity, 0.6).fill({ color: 0xb8b8c4, alpha: 0.7 });
+    g.circle(litx, lity, 0.7).fill({ color: 0xb8b8c4, alpha: 0.8 });
   }
-  // Body (segmented metal sphere)
-  g.circle(0, 0, 7).fill(0x10080a);
-  g.circle(0, 0, 6.6).fill(0x2a2028);
-  g.circle(0, 0, 6.6).stroke({ color: 0x6a6a78, width: 0.8 });
+  // Body (segmented metal sphere, slightly larger)
+  g.circle(0, 0, 8.5).fill(0x10080a);
+  g.circle(0, 0, 8).fill(0x2a2028);
+  g.circle(0, 0, 8).stroke({ color: 0x8a8a98, width: 1 });
   // Panel seams
-  g.moveTo(-6.5, 0).lineTo(6.5, 0).stroke({ color: 0x10080a, width: 0.7 });
-  g.moveTo(0, -6.5).lineTo(0, 6.5).stroke({ color: 0x10080a, width: 0.7 });
+  g.moveTo(-7.5, 0).lineTo(7.5, 0).stroke({ color: 0x10080a, width: 0.8 });
+  g.moveTo(0, -7.5).lineTo(0, 7.5).stroke({ color: 0x10080a, width: 0.8 });
   // Bolts at panel intersections
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    g.circle(Math.cos(a) * 4.6, Math.sin(a) * 4.6, 0.8).fill(0x6a6a78);
+    g.circle(Math.cos(a) * 5.5, Math.sin(a) * 5.5, 0.9).fill(0x8a8a98);
   }
-  // Sensor eye
-  g.circle(0, 0, 3.4).fill(0x18120c);
-  g.circle(0, 0, 3.4).stroke({ color: PROJ.enemyMine, width: 1, alpha: 0.95 });
-  g.circle(0, 0, 2.2).fill({ color: PROJ.enemyMine, alpha: 0.95 });
-  g.circle(0, 0, 1.2).fill(0xffd166);
-  g.circle(-0.4, -0.4, 0.5).fill(0xffffff);
-  // Hazard chevrons around the equator (4 small triangles)
+  // Sensor eye — brighter, with a vivid red core
+  g.circle(0, 0, 4.2).fill(0x18120c);
+  g.circle(0, 0, 4.2).stroke({ color: 0xff3a2a, width: 1.2, alpha: 1 });
+  g.circle(0, 0, 3).fill({ color: 0xff3a2a, alpha: 0.95 });
+  g.circle(0, 0, 2).fill(0xff9a3a);
+  g.circle(0, 0, 1).fill(0xffffff);
+  g.circle(-0.5, -0.5, 0.5).fill(0xffffff);
+  // Hazard chevrons around the equator (4 small triangles) — larger + yellow
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 8;
-    const x = Math.cos(a) * 5.8;
-    const y = Math.sin(a) * 5.8;
-    g.poly([x, y, x + Math.cos(a + 0.4) * 1.2, y + Math.sin(a + 0.4) * 1.2, x + Math.cos(a - 0.4) * 1.2, y + Math.sin(a - 0.4) * 1.2]).fill({ color: 0xfff066, alpha: 0.9 });
+    const x = Math.cos(a) * 6.8;
+    const y = Math.sin(a) * 6.8;
+    g.poly([x, y, x + Math.cos(a + 0.4) * 1.6, y + Math.sin(a + 0.4) * 1.6, x + Math.cos(a - 0.4) * 1.6, y + Math.sin(a - 0.4) * 1.6]).fill({ color: 0xfff066, alpha: 1 });
   }
   root.addChild(g);
 }

@@ -5,6 +5,7 @@ export type DropKey =
   | 'health_s' | 'health_l'
   | 'w_pulse' | 'w_spread' | 'w_plasma' | 'w_missiles' | 'w_wave' | 'w_lightning'
   | 'shield' | 'speed' | 'damage' | 'bomb'
+  | 'extra_life'
   | 'gem_sm' | 'gem_md' | 'gem_lg';
 
 export class Drop {

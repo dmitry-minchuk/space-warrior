@@ -33,6 +33,7 @@ import {
 import {
   drawBomb,
   drawDamage,
+  drawExtraLife,
   drawGem,
   drawHealthL,
   drawHealthS,
@@ -186,7 +187,7 @@ export function buildAtlas(app: Application): Atlas {
     enemyHeavy: forge.bakeCentered(24, 24, drawEnemyHeavy),
     enemyPlasma: forge.bakeCentered(26, 26, drawEnemyPlasma),
     enemyBomb: forge.bakeCentered(32, 36, drawEnemyBomb),
-    mine: forge.bakeCentered(36, 36, drawMine),
+    mine: forge.bakeCentered(64, 64, drawMine),
   };
 
   // Drop icons baked at 56×56 so each weapon's silhouette reads at a glance.
@@ -204,6 +205,7 @@ export function buildAtlas(app: Application): Atlas {
     speed: forge.bakeCentered(D, D, drawSpeed),
     damage: forge.bakeCentered(D, D, drawDamage),
     bomb: forge.bakeCentered(D, D, drawBomb),
+    extra_life: forge.bakeCentered(D, D, drawExtraLife),
     gem_sm: forge.bakeCentered(32, 32, (r) => drawGem(r, 'sm')),
     gem_md: forge.bakeCentered(36, 36, (r) => drawGem(r, 'md')),
     gem_lg: forge.bakeCentered(40, 40, (r) => drawGem(r, 'lg')),

@@ -66,9 +66,10 @@ These tables document the current gameplay numbers used as the starting point fo
 | Hit invulnerability | 1.0s |
 | Shield pickup HP | 100 |
 | Shield decay | 8 HP/s |
-| Speed boost | 1.3x for 15s |
+| Speed boost | 1.55x for 18s |
 | Damage boost | 2x for 10s |
 | Bomb damage | 200 |
+| Max lives | 9 |
 
 ### Weapons
 
@@ -99,6 +100,7 @@ Enemy speed includes the global `ENEMY_SPEED_MUL = 0.8`.
 | Drone | 12 | 128 | 6 | 30 |
 | Drone Shooter | 16 | 112 | 6 | 60 |
 | Drone Cross | 18 | 116 | 7 | 70 |
+| Drone Lane | 18 | 88 | 7 | 80 |
 | Turret | 130 | 64 | 10 | 220 |
 | Turret Crossfire | 115 | 68 | 10 | 260 |
 | Miner | 60 | 88 | 10 | 160 |
@@ -106,6 +108,7 @@ Enemy speed includes the global `ENEMY_SPEED_MUL = 0.8`.
 | Kamikaze | 30 | 192 | 30 | 90 |
 | Heavy | 220 | 56 | 18 | 400 |
 | Heavy Breaker | 190 | 60 | 19 | 460 |
+| Heavy Suppressor | 200 | 48 | 18 | 420 |
 | Stealth | 80 | 128 | 12 | 240 |
 | Tesla | 85 | 96 | 12 | 220 |
 | Tesla Weaver | 90 | 108 | 13 | 270 |
@@ -131,6 +134,8 @@ Enemy speed includes the global `ENEMY_SPEED_MUL = 0.8`.
 
 | Pattern | Projectile output | Cycle | Approx. incoming DPS |
 |---|---|---:|---:|
+| Alternating Lanes | 2 x 6 diagonal lane shots, side flips each beat | 0.85s | 14.1 |
+| Suppressive Wave | 7 x 5 slow wide fan | 4.0s | 8.8 |
 | Forward Single | 1 x 6 damage | 1.4-2.0s | 3.5 |
 | Forward Burst | 3 x 6 damage | 2.4s | 7.5 |
 | Spread 5 | 5 x 8 damage | 2.4s | 16.7 |
@@ -159,6 +164,8 @@ Enemy speed includes the global `ENEMY_SPEED_MUL = 0.8`.
 ### Bosses
 
 Boss HP uses tiered multipliers: 2.0x for bosses 1-5, 2.25x for bosses 6-12, 2.5x for bosses 13-17, 2.75x for bosses 18-19, and 3.0x for boss 20.
+
+Phase counts per boss: bosses 1-5 use 2-3 phases (teaching their signature attack, then adding a second angle or faster rhythm), bosses 6-12 use 3 phases (base / mixed / desperation), bosses 13-19 use 4 phases (armor break, rhythm shift, multi-pattern, overload), and boss 20 is a 4-form fight (outer shell → exposed core → transformed → last stand) with visual transformation cues — colour shifts, scale pulses, and screen flashes at each transition.
 
 | Level | Boss | HP | Radius | Score |
 |---:|---|---:|---:|---:|
@@ -225,6 +232,9 @@ This table counts scripted waves only. Passive filler enemies can add extra load
 | Small gem | 100 score |
 | Medium gem | 500 score |
 | Large gem | 2000 score |
+| Extra life base chance | 0.6% per qualifying kill (score ≥120, only when a gem would have dropped) |
+| Extra life pity ramp | +0.08%/kill above 220 kills without a 1-up |
+| Boss extra life | Guaranteed on bosses 5/10/15/20, 25% otherwise (capped at 9 lives) |
 
 ### Loot Weights
 
@@ -258,9 +268,9 @@ This roadmap is focused on balance quality rather than raw feature count. The go
 | 3. Rework Weapon Progression | Not started | LV5 identity and upgrade pacing are unchanged. |
 | 4. Rebalance Drops and Economy | Partial | Drop smoothing and pity rules were improved, but HP-aware economy tuning is still open. |
 | 5. Redesign Enemy Families Around Roles | Done, first pass | Core enemy families now have clearer tactical roles and reduced late-game HP inflation. |
-| 6. Add Multi-Pattern Enemy Variants | Done, first pass | Added Scout Ambusher, Bomber Captain, Interceptor Ace, Drone Cross, Turret Crossfire, Heavy Breaker, and Tesla Weaver. |
-| 7. Improve Attack Angles and Patterns | Done, first pass | Added side pincers, diagonal lanes, rear shots, mine arcs, bomb fans, crossfire, and plasma fan pressure. |
-| 8. Rebuild Bosses Around Phases | Partial | Early bosses and existing boss scripts now use clearer phase escalation and reduced HP, but boss parts/forms are still future work. |
+| 6. Add Multi-Pattern Enemy Variants | Done, first pass | Added Scout Ambusher, Bomber Captain, Interceptor Ace, Drone Cross, Drone Lane, Turret Crossfire, Heavy Breaker, Heavy Suppressor, and Tesla Weaver. |
+| 7. Improve Attack Angles and Patterns | Done, first pass | Added side pincers, diagonal lanes, rear shots, mine arcs, bomb fans, crossfire, plasma fan pressure, alternating lanes, and slow suppressive waves. |
+| 8. Rebuild Bosses Around Phases | Done, first pass | All 20 bosses now have explicit phase scripts — 1-5 stay 2-3 phases (teaching), 6-12 go to 3 phases, 13-19 escalate to 4 phases, and the Architect is a 4-form fight with visual transformation cues. Boss parts/destructible systems remain future work. |
 | 9. Add Boss Parts and Transformations | Not started | Destructible boss systems and transformation visuals are not implemented yet. |
 | 10. Smooth Level Difficulty | Done, first pass | All 20 level scripts now introduce tactical variants progressively, with reduced late HP spikes. |
 | 11. Manage Screen Readability | Partial | Background clutter and projectile interception clarity were improved, but combat readability still needs playtest tuning. |

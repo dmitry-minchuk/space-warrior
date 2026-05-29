@@ -37,12 +37,13 @@ The game runs in modern browsers and Safari on macOS.
 
 ## Releases
 
-HTML releases are published manually through GitHub Actions:
+HTML releases are published through GitHub Actions:
 
 1. Open `Actions` -> `Release HTML`.
 2. Click `Run workflow`.
 3. Enter a SemVer version without `v`, for example `0.1.1`.
 4. The workflow creates tag `v0.1.1`, a GitHub Release, and attaches `space-warrior-v0.1.1.html`.
+5. Non-prerelease builds are also automatically deployed to GitHub Pages.
 
 Versioning is intentionally simple: `MAJOR.MINOR.PATCH`. Use `PATCH` for small fixes, `MINOR` for notable gameplay changes, and `MAJOR` for large or incompatible releases.
 
@@ -300,7 +301,7 @@ This roadmap is focused on balance quality rather than raw feature count. The go
 
 | Area | Status | Notes |
 |---|---|---|
-| 1. Instrument the Balance Loop | Not started | Telemetry and debug run summaries are still needed. |
+| 1. Instrument the Balance Loop | Done | Per-run telemetry tracks weapon usage, survival pressure, economy, and encounter load. Debug snapshots are saved to `telemetry/` in development builds. |
 | 2. Rebalance Weapon Roles | Partial | Missile handling, plasma lightning reach, and global non-missile rate of fire were adjusted, but full weapon role tuning is still open. |
 | 3. Rework Weapon Progression | Not started | LV5 identity and upgrade pacing are unchanged. |
 | 4. Rebalance Drops and Economy | Partial | Drop smoothing and pity rules were improved, but HP-aware economy tuning is still open. |
@@ -311,20 +312,22 @@ This roadmap is focused on balance quality rather than raw feature count. The go
 | 9. Add Boss Parts and Transformations | Done, first pass | Every boss now exposes 2-4 destructible modules (7 slot types: T/S/A/E/M/P/H) that gate specific attacks. Damage is routed: blocking parts (S/A) absorb 100%, optional parts (T/E/M/P/H) take 60% with 40% bleeding to the hull. Shields halve hull damage while alive and open a 4 s core-burst window on break. The Architect swaps its parts roster per form. |
 | 10. Smooth Level Difficulty | Done, first pass | All 20 level scripts now introduce tactical variants progressively, with reduced late HP spikes. |
 | 11. Manage Screen Readability | Partial | Background clutter and projectile interception clarity were improved, but combat readability still needs playtest tuning. |
-| 12. Define Playtest Targets | Done | Target metrics are documented below; actual telemetry collection is still part of item 1. |
+| 12. Define Playtest Targets | Done | Target metrics are documented below; telemetry collection is implemented (item 1). |
 | 13. Suggested Implementation Order | Done | The implementation order is documented below. |
+| 14. Gamepad Support | Not started | Add Gamepad API input so the game is playable with controllers (Xbox, PlayStation, generic HID). |
+| 15. Android APK Build | Not started | Wrap the single-file HTML build into an installable APK via TWA or Capacitor for Android TV and mobile. |
 
 ### 1. Instrument the Balance Loop
 
-Before changing large sets of numbers, add lightweight telemetry that can be reviewed after a run.
+Lightweight per-run telemetry is implemented in `src/game/telemetry.ts`. It accumulates counters and time-series samples in memory and periodically POSTs snapshots to the Vite dev server, which saves them to `telemetry/`. All hooks are no-ops in production builds.
 
-| Task | Target |
+| Task | Status |
 |---|---|
-| Track weapon usage | Time equipped, shots fired, hits, kills, boss damage, projectile interception count |
-| Track survival pressure | Damage taken per minute, deaths by level, shield damage absorbed, bomb usage |
-| Track economy | Health drops per level, weapon drops per level, pickups missed, pity triggers |
-| Track encounter load | Enemies alive over time, enemy bullets alive over time, boss fight duration |
-| Add debug export | Save one JSON summary per run in development builds |
+| Track weapon usage | Done — time equipped, shots fired, hits, kills, boss damage, projectile interception count |
+| Track survival pressure | Done — damage taken per minute, deaths by level, shield damage absorbed, bomb usage |
+| Track economy | Done — drops rolled per type, pity triggers for health and weapons, rerolls |
+| Track encounter load | Done — enemies alive over time, enemy bullets alive over time, boss phase durations |
+| Add debug export | Done — JSON snapshots saved to `telemetry/` per run in development builds |
 
 Balance decisions should be based on `time-to-kill`, `damage taken per minute`, `projectiles on screen`, and `boss phase duration`, not only on single values like damage or HP.
 
@@ -495,6 +498,39 @@ Use these targets as first-pass goals, then adjust after real runs.
 
 These are tuning targets, not hard rules. If a level has fewer bullets but stronger mines or more kamikazes, it can still be difficult.
 
+### 14. Gamepad Support
+
+Add Gamepad API input so the game is fully playable with a controller on desktop browsers and Android.
+
+| Task | Target |
+|---|---|
+| Poll `navigator.getGamepads()` each frame | Read left stick / D-pad for movement, face buttons for fire and bomb, start for pause |
+| Map common layouts | Xbox (A/B/X/Y), PlayStation (Cross/Circle/Square/Triangle), generic HID |
+| Dead-zone and analog-to-digital | Configurable stick dead zone; analog stick controls ship speed proportionally |
+| Hot-plug detection | `gamepadconnected` / `gamepaddisconnected` events; seamless switch between keyboard and gamepad |
+| On-screen button hints | Show gamepad glyphs in menus and HUD when a gamepad is the last active input |
+
+The Gamepad API is supported in all modern browsers including Android Chrome and WebView.
+
+### 15. Android APK Build
+
+Package the single-file HTML build as an installable APK for Android TV set-top boxes and mobile devices.
+
+| Approach | Pros | Cons |
+|---|---|---|
+| TWA (Trusted Web Activity) | Lightweight, uses Chrome engine, no bridge overhead | Requires a hosted origin or `asset_links.json` for offline |
+| Capacitor / Cordova | Full offline APK, access to native APIs if needed | Adds a build toolchain (Android SDK, Gradle) |
+| PWA + Bubblewrap | CLI-driven TWA wrapper, minimal config | Still needs Chrome on device |
+
+| Task | Target |
+|---|---|
+| Choose packaging approach | TWA via Bubblewrap for minimal overhead, or Capacitor if native features are needed later |
+| Add Web App Manifest | `manifest.json` with icons, `display: fullscreen`, landscape orientation |
+| Gamepad in WebView | Verify Gamepad API works inside the chosen WebView/TWA container |
+| Android TV launcher | `android.intent.category.LEANBACK_LAUNCHER` in manifest; provide banner icon |
+| Build pipeline | GitHub Actions job that produces a signed APK alongside the HTML release |
+| Test on physical device | Verify input, performance, and fullscreen on at least one Android TV box |
+
 ### 13. Suggested Implementation Order
 
 | Step | Work |
@@ -508,7 +544,9 @@ These are tuning targets, not hard rules. If a level has fewer bullets but stron
 | 7 | Convert bosses to explicit phase scripts |
 | 8 | Add boss parts, weak points, and transformation visuals |
 | 9 | Run playtests and adjust from metrics |
-| 10 | Publish a balanced HTML release |
+| 10 | Add gamepad support (Gamepad API) |
+| 11 | Package as Android APK (TWA or Capacitor) |
+| 12 | Publish a balanced HTML release and APK |
 
 Do not tune all values at once. Change one layer, playtest, record metrics, then move to the next layer.
 
@@ -521,6 +559,8 @@ Do not tune all values at once. Change one layer, playtest, record metrics, then
 | X / Shift | Bomb |
 | Esc / P | Pause / resume |
 | Enter | Confirm menu action |
+
+Gamepad support is planned (see roadmap item 14).
 
 ## Project Structure
 

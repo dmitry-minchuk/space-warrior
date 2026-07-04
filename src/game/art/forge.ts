@@ -6,6 +6,7 @@ import {
   RenderTexture,
   Texture,
 } from 'pixi.js';
+import { ANTIALIAS, BAKE_RESOLUTION } from '../../engine/quality';
 
 /**
  * Texture forge: bakes procedural graphics into RenderTextures once at boot,
@@ -15,10 +16,15 @@ export class Forge {
   constructor(private readonly app: Application) {}
 
   /** Bake a container drawn by `draw` into a transparent texture of given size. */
-  bake(width: number, height: number, draw: (root: Container) => void, resolution = 2): Texture {
+  bake(
+    width: number,
+    height: number,
+    draw: (root: Container) => void,
+    resolution = BAKE_RESOLUTION,
+  ): Texture {
     const root = new Container();
     draw(root);
-    const rt = RenderTexture.create({ width, height, resolution, antialias: true });
+    const rt = RenderTexture.create({ width, height, resolution, antialias: ANTIALIAS });
     this.app.renderer.render({ container: root, target: rt, clear: true });
     root.destroy({ children: true });
     return rt;

@@ -1,5 +1,6 @@
 import { Application } from 'pixi.js';
 import { GAME_HEIGHT, GAME_WIDTH } from './constants';
+import { ANTIALIAS, LOW_END_DEVICE } from './quality';
 
 export interface Viewport {
   app: Application;
@@ -12,12 +13,16 @@ export async function createViewport(mount: HTMLElement): Promise<Viewport> {
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
     background: 0x000005,
-    antialias: true,
+    antialias: ANTIALIAS,
     autoDensity: true,
-    resolution: Math.min(window.devicePixelRatio || 1, 2),
+    resolution: LOW_END_DEVICE ? 1 : Math.min(window.devicePixelRatio || 1, 2),
     preference: 'webgl',
     powerPreference: 'high-performance',
   });
+
+  // High-refresh displays are welcome (the loop uses variable dt), but on
+  // low-end hardware 120 Hz doubles CPU/GPU work for little visible gain.
+  if (LOW_END_DEVICE) app.ticker.maxFPS = 60;
 
   mount.appendChild(app.canvas);
   app.canvas.style.imageRendering = 'auto';

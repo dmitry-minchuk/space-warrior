@@ -93,7 +93,8 @@ export class Telemetry {
   private run: RunSnapshot;
   private flushT = 0;
   private sampleT = 0;
-  private enabled = true;
+  // Dev-server builds only: production (incl. the APK) must stay silent.
+  private enabled = import.meta.env.DEV;
   private currentWeapon: WeaponId | 'none' = 'pulse';
   private currentLevel = 1;
   private activeEncounter: EncounterLog | null = null;

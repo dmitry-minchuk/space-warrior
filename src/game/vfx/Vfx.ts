@@ -2,7 +2,22 @@ import { Container } from 'pixi.js';
 import type { World } from '../world';
 import { Particle } from '../entities/Particle';
 
+/** Global particle ceiling. Trails self-limit in GameScene, but burst
+ *  emitters (explosions, sparks, debris) used to bypass every cap — a boss
+ *  death pushed ~180 sprites into a single frame on a 2 GB TV box. */
+export const PARTICLE_CAP = 320;
+
+/** How many of `want` cosmetic multiples fit right now. Single core sprites
+ *  (rings, flashes) spawn regardless — only multiplicity gets trimmed. */
+export function particleBudget(world: World, want: number): number {
+  const room = PARTICLE_CAP - world.particles.length;
+  if (room <= 0) return 0;
+  return want <= room ? want : room;
+}
+
 function spawnParticle(world: World, layer: Container, opts: Parameters<Particle['configure']>[0]): void {
+  // Absolute backstop so even "core" sprites cannot overrun the cap by far.
+  if (world.particles.length >= PARTICLE_CAP + 40) return;
   const p = world.particlePool.spawn(opts, layer);
   world.particles.push(p);
 }
@@ -108,7 +123,8 @@ export function hitSpark(world: World, x: number, y: number, color = 0xffe2c8): 
     alpha: 0.9,
   });
   // Sparkle particles — 10 outward
-  for (let i = 0; i < 10; i++) {
+  const sparkles = particleBudget(world, 10);
+  for (let i = 0; i < sparkles; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 140 + Math.random() * 220;
     spawnParticle(world, world.layers.effectsOver, {
@@ -125,7 +141,8 @@ export function hitSpark(world: World, x: number, y: number, color = 0xffe2c8): 
     });
   }
   // A few orange embers for "meat"
-  for (let i = 0; i < 4; i++) {
+  const embers = particleBudget(world, 4);
+  for (let i = 0; i < embers; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 60 + Math.random() * 120;
     spawnParticle(world, world.layers.effectsOver, {
@@ -187,7 +204,7 @@ export function explosion(world: World, x: number, y: number, size: 'sm' | 'md' 
     blend: 'add',
   });
   // Sparks
-  const n = size === 'sm' ? 8 : size === 'md' ? 16 : 28;
+  const n = particleBudget(world, size === 'sm' ? 8 : size === 'md' ? 16 : 28);
   for (let i = 0; i < n; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 80 + Math.random() * (size === 'lg' ? 280 : size === 'md' ? 200 : 140);
@@ -205,7 +222,7 @@ export function explosion(world: World, x: number, y: number, size: 'sm' | 'md' 
     });
   }
   // Smoke
-  const smokeCount = size === 'sm' ? 4 : size === 'md' ? 8 : 14;
+  const smokeCount = particleBudget(world, size === 'sm' ? 4 : size === 'md' ? 8 : 14);
   for (let i = 0; i < smokeCount; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 30 + Math.random() * 90;
@@ -316,7 +333,8 @@ export function missileBlast(world: World, x: number, y: number): void {
     alpha: 0.85,
   });
   // Shrapnel sparks — 14 outward, fast.
-  for (let i = 0; i < 14; i++) {
+  const shrapnel = particleBudget(world, 14);
+  for (let i = 0; i < shrapnel; i++) {
     const angle = (i / 14) * Math.PI * 2 + Math.random() * 0.3;
     const speed = 180 + Math.random() * 220;
     spawnParticle(world, world.layers.effectsOver, {
@@ -333,7 +351,8 @@ export function missileBlast(world: World, x: number, y: number): void {
     });
   }
   // Tiny white-hot pinpoint sparks for grit.
-  for (let i = 0; i < 6; i++) {
+  const pinpoints = particleBudget(world, 6);
+  for (let i = 0; i < pinpoints; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 280 + Math.random() * 220;
     spawnParticle(world, world.layers.effectsOver, {
@@ -349,7 +368,8 @@ export function missileBlast(world: World, x: number, y: number): void {
     });
   }
   // Drifting smoke puffs (a few, slow, going up).
-  for (let i = 0; i < 5; i++) {
+  const puffs = particleBudget(world, 5);
+  for (let i = 0; i < puffs; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 30 + Math.random() * 70;
     spawnParticle(world, world.layers.effectsOver, {

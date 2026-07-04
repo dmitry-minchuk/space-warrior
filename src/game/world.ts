@@ -11,7 +11,7 @@ import { DropPool } from './entities/Drop';
 import type { Boss } from './entities/Boss';
 import type { Particle } from './entities/Particle';
 import { ParticlePool } from './entities/Particle';
-import type { FloatingText } from './vfx/FloatingText';
+import { FloatingTextPool, type FloatingText } from './vfx/FloatingText';
 import type { Telemetry } from './telemetry';
 
 export interface Audio {
@@ -54,6 +54,7 @@ export interface World {
   dropPool: DropPool;
   particlePool: ParticlePool;
   projectilePool: ProjectilePool;
+  floatPool: FloatingTextPool;
   // Callbacks
   onLevelClear: () => void;
   onPlayerDeath: () => void;
@@ -85,5 +86,6 @@ export function makeEmptyWorld(): Partial<World> {
     dropPool: new DropPool(),
     particlePool: new ParticlePool(),
     projectilePool: new ProjectilePool(),
+    floatPool: new FloatingTextPool(),
   };
 }

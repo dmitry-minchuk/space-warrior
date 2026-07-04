@@ -38,12 +38,43 @@ export function unlockAudio(): void {
   unlocked = true;
 }
 
-function noiseBuffer(duration = 0.5): AudioBuffer {
-  const c = ensure();
-  const buf = c.createBuffer(1, Math.floor(c.sampleRate * duration), c.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-  return buf;
+// One second of white noise, generated once — every consumer plays a random
+// slice of it. Filling a fresh Float32Array with Math.random() per SFX was a
+// measurable main-thread spike on TV boxes (a boss death fired 3 large booms
+// = ~92k samples synthesized inside a single frame).
+const NOISE_LEN_S = 1.0;
+let sharedNoise: AudioBuffer | null = null;
+
+function noiseBuf(c: AudioContext): AudioBuffer {
+  if (!sharedNoise) {
+    sharedNoise = c.createBuffer(1, Math.ceil(c.sampleRate * NOISE_LEN_S), c.sampleRate);
+    const data = sharedNoise.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  }
+  return sharedNoise;
+}
+
+/** Random start offset so reused noise slices don't sound identical. */
+function noiseOffset(duration: number): number {
+  return Math.random() * Math.max(0, NOISE_LEN_S - duration - 0.02);
+}
+
+// Explosions cap: past a few overlapping booms the extra ones are inaudible,
+// but each still costs nodes — a boss death used to stack 3 in one frame.
+const MAX_CONCURRENT_BOOMS = 3;
+const boomEnds: number[] = [];
+
+function boomSlot(duration: number): boolean {
+  const now = ensure().currentTime;
+  for (let i = boomEnds.length - 1; i >= 0; i--) {
+    if (boomEnds[i] <= now) {
+      boomEnds[i] = boomEnds[boomEnds.length - 1];
+      boomEnds.pop();
+    }
+  }
+  if (boomEnds.length >= MAX_CONCURRENT_BOOMS) return false;
+  boomEnds.push(now + duration);
+  return true;
 }
 
 interface PlayOpts {
@@ -73,7 +104,7 @@ function envOsc(type: OscillatorType, freqA: number, freqB: number, duration: nu
 function envNoise(duration: number, vol: number, target: GainNode, lp = 4000, hp = 100): void {
   const c = ensure();
   const src = c.createBufferSource();
-  src.buffer = noiseBuffer(duration);
+  src.buffer = noiseBuf(c);
   const g = c.createGain();
   const lpf = c.createBiquadFilter();
   lpf.type = 'lowpass';
@@ -85,8 +116,7 @@ function envNoise(duration: number, vol: number, target: GainNode, lp = 4000, hp
   g.gain.linearRampToValueAtTime(vol, c.currentTime + 0.005);
   g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + duration);
   src.connect(hpf).connect(lpf).connect(g).connect(target);
-  src.start();
-  src.stop(c.currentTime + duration + 0.02);
+  src.start(c.currentTime, noiseOffset(duration), duration + 0.02);
 }
 
 sounds.pulse = (o) => envOsc('square', 1400 * (o.pitch ?? 1), 320, 0.08, 0.15 * (o.volume ?? 1), sfxGain!);
@@ -117,14 +147,17 @@ sounds.bomb = (o) => {
 sounds.enemy_fire = (o) => envOsc('sawtooth', 700 * (o.pitch ?? 1), 220, 0.08, 0.12 * (o.volume ?? 1), sfxGain!);
 sounds.sniper_fire = (o) => envOsc('sawtooth', 2200, 400, 0.2, 0.18 * (o.volume ?? 1), sfxGain!);
 sounds.boom_sm = (o) => {
+  if (!boomSlot(0.25)) return;
   envNoise(0.25, 0.22 * (o.volume ?? 1), sfxGain!, 1800, 80);
   envOsc('triangle', 220, 50, 0.18, 0.18 * (o.volume ?? 1), sfxGain!);
 };
 sounds.boom_md = (o) => {
+  if (!boomSlot(0.45)) return;
   envNoise(0.45, 0.32 * (o.volume ?? 1), sfxGain!, 1500, 60);
   envOsc('triangle', 140, 35, 0.4, 0.3 * (o.volume ?? 1), sfxGain!);
 };
 sounds.boom_lg = (o) => {
+  if (!boomSlot(0.7)) return;
   envNoise(0.7, 0.45 * (o.volume ?? 1), sfxGain!, 1200, 40);
   envOsc('triangle', 90, 22, 0.6, 0.45 * (o.volume ?? 1), sfxGain!);
   envOsc('sine', 200, 50, 0.5, 0.2 * (o.volume ?? 1), sfxGain!);
@@ -557,20 +590,19 @@ function playKick(): void {
   o.stop(c.currentTime + 0.25);
   // Click for snap
   const click = c.createBufferSource();
-  click.buffer = noiseBuffer(0.04);
+  click.buffer = noiseBuf(c);
   const clickG = c.createGain();
   clickG.gain.setValueAtTime(0.16, c.currentTime);
   clickG.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.04);
   click.connect(clickG).connect(target);
-  click.start();
-  click.stop(c.currentTime + 0.05);
+  click.start(c.currentTime, noiseOffset(0.05), 0.05);
 }
 
 function playSnare(): void {
   const c = ensure();
   const target = musicGain!;
   const noise = c.createBufferSource();
-  noise.buffer = noiseBuffer(0.2);
+  noise.buffer = noiseBuf(c);
   const bp = c.createBiquadFilter();
   bp.type = 'bandpass';
   bp.frequency.value = 1800;
@@ -580,8 +612,7 @@ function playSnare(): void {
   g.gain.linearRampToValueAtTime(0.18, c.currentTime + 0.005);
   g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.15);
   noise.connect(bp).connect(g).connect(target);
-  noise.start();
-  noise.stop(c.currentTime + 0.18);
+  noise.start(c.currentTime, noiseOffset(0.18), 0.18);
   // Tone body
   const o = c.createOscillator();
   o.type = 'triangle';
@@ -599,7 +630,7 @@ function playHat(): void {
   const c = ensure();
   const target = musicGain!;
   const noise = c.createBufferSource();
-  noise.buffer = noiseBuffer(0.05);
+  noise.buffer = noiseBuf(c);
   const hp = c.createBiquadFilter();
   hp.type = 'highpass';
   hp.frequency.value = 7000;
@@ -608,8 +639,7 @@ function playHat(): void {
   g.gain.linearRampToValueAtTime(0.07, c.currentTime + 0.003);
   g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.045);
   noise.connect(hp).connect(g).connect(target);
-  noise.start();
-  noise.stop(c.currentTime + 0.05);
+  noise.start(c.currentTime, noiseOffset(0.05), 0.05);
 }
 
 function step(): void {

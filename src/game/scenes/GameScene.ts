@@ -21,8 +21,7 @@ import type { Audio, World } from '../world';
 import { makeEmptyWorld } from '../world';
 import { WEAPONS, fireBonusMissile } from '../weapons/weapons';
 import { WEAPON_LABELS, type WeaponId } from '../weapons/types';
-import { bigHit, bombFlash, emitEngineTrail, emitEnemyEngine, explosion, hitSpark, missileBlast, pickupFlash } from '../vfx/Vfx';
-import { FloatingText } from '../vfx/FloatingText';
+import { bigHit, bombFlash, emitEngineTrail, emitEnemyEngine, explosion, hitSpark, missileBlast, particleBudget, pickupFlash } from '../vfx/Vfx';
 import { themeForLevel } from '../palette';
 import { Telemetry } from '../telemetry';
 
@@ -797,8 +796,12 @@ export class GameScene extends Scene {
       case 'gem_lg': s.score += 2000; text = '+2000'; color = 0xffd166; break;
     }
     if (text) {
-      const ft = new FloatingText({ text, color, size: 22, bold: true });
-      ft.spawn(x, y - 24, this.world.layers.effectsOver);
+      // Cap live popups: past ~20 the oldest is stale info and every live
+      // Text is another scene-graph node. Recycle the oldest instead.
+      if (this.world.floats.length >= 20) {
+        this.world.floatPool.release(this.world.floats.shift()!);
+      }
+      const ft = this.world.floatPool.spawn({ text, color, size: 22, bold: true }, x, y - 24, this.world.layers.effectsOver);
       this.world.floats.push(ft);
     }
   }
@@ -1095,6 +1098,7 @@ export class GameScene extends Scene {
    *  also flings chunks). */
   private spawnDebrisChunks(cx: number, cy: number, radius: number, count: number): void {
     const a = this.world.atlas.particles;
+    count = particleBudget(this.world, count);
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 80 + Math.random() * 160;
@@ -1122,7 +1126,7 @@ export class GameScene extends Scene {
   /** Spawn chunky debris radiating outward from the boss centre. */
   private spawnBossDebris(cx: number, cy: number, radius: number): void {
     const a = this.world.atlas.particles;
-    const N = 22;
+    const N = particleBudget(this.world, 22);
     for (let i = 0; i < N; i++) {
       const angle = (i / N) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
       const speed = 120 + Math.random() * 220;
@@ -1145,7 +1149,8 @@ export class GameScene extends Scene {
       this.world.particles.push(p);
     }
     // Bright smoke ring
-    for (let i = 0; i < 12; i++) {
+    const ringN = particleBudget(this.world, 12);
+    for (let i = 0; i < ringN; i++) {
       const angle = (i / 12) * Math.PI * 2;
       const p = this.world.particlePool.spawn({
         texture: a.softOrange,
@@ -1249,16 +1254,22 @@ export class GameScene extends Scene {
     const bx = b.x, by = b.y, r = b.radius;
     const now = this.world.time;
 
-    // INSTANT explosion — three overlapping large blasts + huge debris cloud +
-    // screen flash + max shake. The boss sprite snaps invisible at the same
-    // moment (Boss.postUpdateVisual sets alpha=0 once dying flag fires).
+    // INSTANT explosion — flash + shake + first large blast land this frame;
+    // the two overlapping blasts and half the debris follow within ~0.1 s.
+    // Same visual read, but the particle/audio burst no longer piles ~180
+    // sprites and 3 boom synths into a single frame (a guaranteed hitch on
+    // weak TV hardware).
     explosion(this.world, bx, by, 'lg');
-    explosion(this.world, bx - r * 0.4, by - r * 0.3, 'lg');
-    explosion(this.world, bx + r * 0.4, by + r * 0.3, 'lg');
     this.hud.triggerScreenFlash(0xffd166, 0.85);
     this.world.screenShake = Math.max(this.world.screenShake, 42);
     this.spawnBossDebris(bx, by, r);
-    this.spawnDebrisChunks(bx, by, r, 12);
+    this.deferredActions.push({ at: now + 0.05, fn: () => {
+      explosion(this.world, bx - r * 0.4, by - r * 0.3, 'lg');
+      this.spawnDebrisChunks(bx, by, r, 12);
+    }});
+    this.deferredActions.push({ at: now + 0.11, fn: () => {
+      explosion(this.world, bx + r * 0.4, by + r * 0.3, 'lg');
+    }});
 
     // Short reverb tail — a handful of smaller secondary blasts spread over
     // ~0.6s for "the dust settling". No long cascade, no boss visible.
@@ -1369,7 +1380,7 @@ export class GameScene extends Scene {
     for (let i = this.world.floats.length - 1; i >= 0; i--) {
       const f = this.world.floats[i];
       if (!f.alive) {
-        f.detach();
+        this.world.floatPool.release(f);
         this.world.floats.splice(i, 1);
       }
     }

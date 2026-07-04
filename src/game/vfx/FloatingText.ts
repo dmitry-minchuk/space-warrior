@@ -12,13 +12,15 @@ function styleFor(color: number, size: number, bold: boolean): TextStyle {
   const k = `${color}-${size}-${bold}`;
   let s = styleCache.get(k);
   if (!s) {
+    // No dropShadow: its blur pass is the most expensive part of rasterizing
+    // a Text on CPU, and pickups spawn these in bursts. The stroke alone
+    // keeps popups readable over combat.
     s = new TextStyle({
       fontFamily: 'sans-serif',
       fontSize: size,
       fontWeight: bold ? 'bold' : 'normal',
       fill: color,
       stroke: { color: 0x000000, width: 3 },
-      dropShadow: { color: 0x000000, alpha: 0.5, blur: 4, distance: 0 },
     });
     styleCache.set(k, s);
   }
@@ -41,9 +43,18 @@ export class FloatingText {
     this.text.anchor.set(0.5);
   }
 
+  /** Re-target a pooled instance. Style/text setters no-op when unchanged,
+   *  so recurring popups ("+100", "+15 HP") skip re-rasterization entirely. */
+  configure(opts: FloatingTextOpts): void {
+    const style = styleFor(opts.color ?? 0xffffff, opts.size ?? 20, opts.bold ?? true);
+    if (this.text.style !== style) this.text.style = style;
+    if (this.text.text !== opts.text) this.text.text = opts.text;
+  }
+
   spawn(x: number, y: number, layer: Container): void {
     this.x = x;
     this.y = y;
+    this.vy = -50;
     this.text.position.set(x, y);
     this.text.alpha = 1;
     layer.addChild(this.text);
@@ -71,5 +82,26 @@ export class FloatingText {
   detach(): void {
     if (this.layer) this.layer.removeChild(this.text);
     this.layer = null;
+  }
+}
+
+/** Pool: popups used to allocate a fresh Text (CPU canvas raster) per pickup
+ *  and never destroy it — a burst of drops meant a burst of rasterizations
+ *  plus a slow texture leak. Pooled instances reuse their canvas. */
+export class FloatingTextPool {
+  private free: FloatingText[] = [];
+
+  spawn(opts: FloatingTextOpts, x: number, y: number, layer: Container): FloatingText {
+    let ft = this.free.pop();
+    if (!ft) ft = new FloatingText(opts);
+    ft.configure(opts);
+    ft.spawn(x, y, layer);
+    return ft;
+  }
+
+  release(ft: FloatingText): void {
+    ft.alive = false;
+    ft.detach();
+    this.free.push(ft);
   }
 }

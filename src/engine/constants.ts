@@ -9,5 +9,5 @@ export const PLAYER_MAX_X = GAME_WIDTH - 32;
 export const PLAYER_MIN_Y = GAME_HEIGHT * 0.35;
 export const PLAYER_MAX_Y = GAME_HEIGHT - 40;
 
-export const FIXED_DT = 1 / 60;
-export const MAX_STEPS_PER_FRAME = 4;
+/** Longest single simulation step; longer frames are split into sub-steps. */
+export const MAX_SUBSTEP = 1 / 40;

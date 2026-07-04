@@ -32,6 +32,8 @@ async function main(): Promise<void> {
   };
   window.addEventListener('keydown', unlock);
   window.addEventListener('pointerdown', unlock);
+  // Gamepad presses are polled, not events — hook the unlock there too.
+  Input.onFirstPadInput = unlock;
 
   manager.switchTo(new MenuScene(atlas, Sfx));
 

@@ -98,7 +98,7 @@ export class MenuScene extends Scene {
       letterSpacing: 2,
     });
     const ctrl = new Text({
-      text: 'WASD / Arrows : MOVE      SPACE : FIRE      X / Shift : BOMB      ESC : PAUSE',
+      text: 'WASD / Arrows : MOVE      SPACE : FIRE      X / Shift : BOMB      ESC : PAUSE      GAMEPAD : STICK + Ⓐ FIRE · Ⓑ BOMB · ☰ PAUSE',
       style: ctrlStyle,
     });
     ctrl.anchor.set(0.5);

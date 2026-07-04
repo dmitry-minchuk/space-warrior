@@ -1,0 +1,76 @@
+plugins {
+    id 'com.android.application'
+}
+
+// CI passes -PversionName / -PversionCode; local builds fall back to dev values.
+def appVersionName = (findProperty('versionName') ?: '0.0.0-dev').toString()
+def appVersionCode = (findProperty('versionCode') ?: '1').toString().toInteger()
+
+android {
+    namespace 'io.github.dmitryminchuk.spacewarrior'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'io.github.dmitryminchuk.spacewarrior'
+        minSdk 21
+        targetSdk 34
+        versionCode appVersionCode
+        versionName appVersionName
+    }
+
+    signingConfigs {
+        release {
+            // Optional real keystore via env (CI secrets). Without it the release
+            // build falls back to the debug keystore so sideloading always works.
+            def ksPath = System.getenv('ANDROID_KEYSTORE_PATH')
+            if (ksPath) {
+                storeFile file(ksPath)
+                storePassword System.getenv('ANDROID_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig System.getenv('ANDROID_KEYSTORE_PATH') != null \
+                ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// No dependencies: assets are served by MainActivity#serveAsset directly.
+
+// The game itself: the single-file HTML build is bundled as an asset.
+def gameHtml = rootProject.file('../dist-single/index.html')
+
+tasks.register('checkGameAssets') {
+    doLast {
+        if (!gameHtml.exists()) {
+            throw new GradleException(
+                'dist-single/index.html not found — run `npm run build:single` first')
+        }
+    }
+}
+
+tasks.register('copyGameAssets', Copy) {
+    dependsOn 'checkGameAssets'
+    from gameHtml
+    into layout.projectDirectory.dir('src/main/assets')
+}
+
+// Launcher icons and the TV banner are procedural, like the rest of the
+// game art — regenerated on every build instead of being committed.
+tasks.register('generateAndroidArt', Exec) {
+    workingDir rootProject.projectDir.parentFile
+    commandLine 'node', 'scripts/android-art.mjs'
+}
+
+preBuild.dependsOn 'copyGameAssets', 'generateAndroidArt'

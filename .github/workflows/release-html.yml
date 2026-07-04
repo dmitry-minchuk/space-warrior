@@ -80,6 +80,71 @@ jobs:
         with:
           path: ./dist-single
 
+  apk:
+    name: Build and attach Android APK
+    needs: release
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build single HTML
+        run: npm run build:single
+
+      # Optional persistent signing key. Without these secrets the release
+      # APK is signed with the runner's fresh debug key: it installs fine,
+      # but updating an existing install requires uninstalling first.
+      - name: Decode signing keystore
+        if: env.KEYSTORE_B64 != ''
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          {
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore"
+            echo "ANDROID_KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+            echo "ANDROID_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}"
+            echo "ANDROID_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}"
+          } >> "$GITHUB_ENV"
+
+      - name: Build APK
+        run: |
+          ./android/gradlew -p android assembleRelease \
+            -PversionName="${{ inputs.version }}" \
+            -PversionCode="${{ github.run_number }}"
+
+      - name: Prepare APK asset
+        run: cp android/app/build/outputs/apk/release/app-release.apk "space-warrior-v${{ inputs.version }}.apk"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: space-warrior-v${{ inputs.version }}-apk
+          path: space-warrior-v${{ inputs.version }}.apk
+
+      - name: Attach APK to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "v${{ inputs.version }}" \
+            "space-warrior-v${{ inputs.version }}.apk#space-warrior-v${{ inputs.version }}.apk" \
+            --clobber
+
   deploy-pages:
     name: Deploy demo to GitHub Pages
     needs: release

@@ -35,6 +35,20 @@ npm run build:single # outputs to dist-single/index.html
 
 The game runs in modern browsers and Safari on macOS.
 
+Android APK (phones, tablets, Android TV / Google TV — Xiaomi, Sony, Nvidia Shield, etc.):
+
+```bash
+npm run build:single                                  # the APK bundles this file
+cd android && ./gradlew assembleRelease               # needs JDK 17+ and the Android SDK
+# output: android/app/build/outputs/apk/release/app-release.apk
+```
+
+The APK is a thin offline WebView shell (no permissions, ~600 KB). A TWA/Bubblewrap
+wrapper was rejected because Android TV ships without Chrome; the shell forwards
+native gamepad events into the page instead, since Android WebView has no Gamepad API.
+Sideload with `adb install app-release.apk`. On the TV launcher the game appears with
+its own banner. Short press Back to pause, hold Back to quit.
+
 ## Releases
 
 HTML releases are published through GitHub Actions:
@@ -42,8 +56,13 @@ HTML releases are published through GitHub Actions:
 1. Open `Actions` -> `Release HTML`.
 2. Click `Run workflow`.
 3. Enter a SemVer version without `v`, for example `0.1.1`.
-4. The workflow creates tag `v0.1.1`, a GitHub Release, and attaches `space-warrior-v0.1.1.html`.
+4. The workflow creates tag `v0.1.1`, a GitHub Release, and attaches `space-warrior-v0.1.1.html` plus `space-warrior-v0.1.1.apk`.
 5. Non-prerelease builds are also automatically deployed to GitHub Pages.
+
+The APK job signs with an ephemeral debug key unless the `ANDROID_KEYSTORE_BASE64`,
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` secrets
+are configured. Without a persistent key, installing a newer APK over an older one
+requires uninstalling first.
 
 Versioning is intentionally simple: `MAJOR.MINOR.PATCH`. Use `PATCH` for small fixes, `MINOR` for notable gameplay changes, and `MAJOR` for large or incompatible releases.
 
@@ -314,8 +333,8 @@ This roadmap is focused on balance quality rather than raw feature count. The go
 | 11. Manage Screen Readability | Partial | Background clutter and projectile interception clarity were improved, but combat readability still needs playtest tuning. |
 | 12. Define Playtest Targets | Done | Target metrics are documented below; telemetry collection is implemented (item 1). |
 | 13. Suggested Implementation Order | Done | The implementation order is documented below. |
-| 14. Gamepad Support | Not started | Add Gamepad API input so the game is playable with controllers (Xbox, PlayStation, generic HID). |
-| 15. Android APK Build | Not started | Wrap the single-file HTML build into an installable APK via TWA or Capacitor for Android TV and mobile. |
+| 14. Gamepad Support | Done, first pass | Gamepad API polling with analog stick + dead zone, D-pad, and standard button mapping; a native bridge feeds the same path inside the Android WebView. On-screen glyph hints remain future work. |
+| 15. Android APK Build | Done, first pass | Thin offline WebView wrapper in `android/` (TWA rejected: Android TV has no Chrome). Leanback launcher entry, TV banner, gamepad bridge, Back = pause / hold to quit. CI attaches the APK to releases. Play Store publishing remains future work. |
 
 ### 1. Instrument the Balance Loop
 
@@ -502,15 +521,16 @@ These are tuning targets, not hard rules. If a level has fewer bullets but stron
 
 Add Gamepad API input so the game is fully playable with a controller on desktop browsers and Android.
 
-| Task | Target |
+| Task | Status |
 |---|---|
-| Poll `navigator.getGamepads()` each frame | Read left stick / D-pad for movement, face buttons for fire and bomb, start for pause |
-| Map common layouts | Xbox (A/B/X/Y), PlayStation (Cross/Circle/Square/Triangle), generic HID |
-| Dead-zone and analog-to-digital | Configurable stick dead zone; analog stick controls ship speed proportionally |
-| Hot-plug detection | `gamepadconnected` / `gamepaddisconnected` events; seamless switch between keyboard and gamepad |
-| On-screen button hints | Show gamepad glyphs in menus and HUD when a gamepad is the last active input |
+| Poll `navigator.getGamepads()` each frame | Done — left stick / D-pad move, face buttons fire and bomb, Start pauses |
+| Map common layouts | Done — W3C standard mapping covers Xbox, PlayStation, and generic HID |
+| Dead-zone and analog-to-digital | Done — 0.25 radial dead zone with smooth rescale; the stick doubles as a digital D-pad for menus |
+| Hot-plug detection | Done — per-frame polling picks up connects/disconnects; keyboard and gamepad work interchangeably |
+| On-screen button hints | Open — menu shows a static gamepad line; contextual glyphs remain future work |
 
-The Gamepad API is supported in all modern browsers including Android Chrome and WebView.
+Note: Android WebView does not implement the Gamepad API, so the APK wrapper
+forwards native gamepad events into the same input path (see roadmap item 15).
 
 ### 15. Android APK Build
 
@@ -522,14 +542,13 @@ Package the single-file HTML build as an installable APK for Android TV set-top 
 | Capacitor / Cordova | Full offline APK, access to native APIs if needed | Adds a build toolchain (Android SDK, Gradle) |
 | PWA + Bubblewrap | CLI-driven TWA wrapper, minimal config | Still needs Chrome on device |
 
-| Task | Target |
+| Task | Status |
 |---|---|
-| Choose packaging approach | TWA via Bubblewrap for minimal overhead, or Capacitor if native features are needed later |
-| Add Web App Manifest | `manifest.json` with icons, `display: fullscreen`, landscape orientation |
-| Gamepad in WebView | Verify Gamepad API works inside the chosen WebView/TWA container |
-| Android TV launcher | `android.intent.category.LEANBACK_LAUNCHER` in manifest; provide banner icon |
-| Build pipeline | GitHub Actions job that produces a signed APK alongside the HTML release |
-| Test on physical device | Verify input, performance, and fullscreen on at least one Android TV box |
+| Choose packaging approach | Done — plain WebView shell in `android/` (TWA needs Chrome, which Android TV lacks; Capacitor adds toolchain for no benefit here) |
+| Gamepad in WebView | Done — Android WebView has no Gamepad API, so `MainActivity` forwards native pad events into the page via `window.__spaceWarriorPad` |
+| Android TV launcher | Done — `LEANBACK_LAUNCHER` intent filter plus a procedurally generated banner (`scripts/android-art.mjs`) |
+| Build pipeline | Done — the release workflow attaches the APK next to the HTML build |
+| Test on physical device | Open — verify input, performance, and fullscreen on at least one Android TV box |
 
 ### 13. Suggested Implementation Order
 
@@ -560,7 +579,18 @@ Do not tune all values at once. Change one layer, playtest, record metrics, then
 | Esc / P | Pause / resume |
 | Enter | Confirm menu action |
 
-Gamepad support is planned (see roadmap item 14).
+Gamepad (standard mapping — Xbox, PlayStation, generic HID):
+
+| Control | Action |
+|---|---|
+| Left stick / D-pad | Move (stick is analog: tilt controls speed) |
+| A / Cross, Y, shoulders, triggers | Fire while held; A also confirms in menus |
+| B / Circle, X / Square | Bomb; B also cancels overlays |
+| Start | Pause / resume |
+| Select | Cancel |
+
+In the Android app, a short press of Back pauses the game and holding Back for
+about a second quits. TV remote D-pad and OK/Enter work for menu navigation.
 
 ## Project Structure
 

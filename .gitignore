@@ -6,5 +6,12 @@ node_modules/
 dist/
 telemetry/
 
+# Android wrapper: build outputs and generated inputs (game asset, icons)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/
+
 .claude/
 .playwright-mcp/

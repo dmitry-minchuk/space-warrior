@@ -76,8 +76,11 @@ public class MainActivity extends Activity {
         // be a remote key that the page sees too late for autoplay policy.
         webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
         webView.setBackgroundColor(0xFF000000);
-        // Reachable only through adb; needed for on-device CPU profiling.
-        WebView.setWebContentsDebuggingEnabled(true);
+        // Debug builds only: exposes the page to chrome://inspect / CDP for
+        // on-device profiling. Use `gradlew assembleDebug` when diagnosing.
+        if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {

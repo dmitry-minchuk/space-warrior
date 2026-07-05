@@ -609,7 +609,31 @@ about a second quits. TV remote D-pad and OK/Enter work for menu navigation.
 ## Technical Notes
 
 - Logical resolution is 1280x720 with 16:9 letterboxing.
-- The game loop uses a fixed 60 Hz simulation step with an accumulator and up to 4 catch-up steps per frame.
+- The game loop uses a variable timestep matched to the display refresh (works
+  at 60/120/144 Hz), split into sub-steps of at most 25 ms so fast projectiles
+  cannot tunnel through hitboxes on slow frames. A fixed 60 Hz step caused
+  visible judder on TV boxes with jittery frame pacing.
 - Sprites are generated as Pixi RenderTextures during startup, so the repository does not need external sprite PNG assets.
 - Collision checks use circles and simple direct pair checks, which are enough for the current game scale.
-- Projectile, Particle, Enemy, and Drop entities use object pools.
+- Projectile, Particle, Enemy, Drop, and FloatingText entities use object pools,
+  prewarmed at scene start so waves never pay construction cost mid-combat.
+
+### Performance architecture (tuned for 2 GB Android TV boxes)
+
+- **Low-end tier** (`src/engine/quality.ts`): devices with
+  `navigator.deviceMemory ≤ 3` bake textures at resolution 1 without MSAA and
+  cap the ticker at 60 FPS. This is the difference between ~450 MB and an
+  OOM-killed ~950 MB process on a 2 GB box.
+- **Particles** render through Pixi `ParticleContainer`s (one additive + one
+  normal per effects layer) with all particle glyphs on a single atlas page —
+  they bypass the general scene-graph walk and batch into few draw calls.
+  A global particle budget (`PARTICLE_CAP`) also applies to burst emitters.
+- **Fill rate is the scarcest resource on Mali GPUs**: the scrolling starfield
+  is a single fullscreen tile (plus 20 twinkling sprites), because every extra
+  fullscreen translucent layer measurably dropped combat FPS.
+- **Audio synthesis is allocation-free at play time**: one shared noise buffer,
+  a cap on concurrent explosion booms, and the boss-death barrage is spread
+  over ~0.1 s instead of landing in one frame.
+- Projectiles are partitioned into player/enemy lists once per frame; hot loops
+  compare squared distances. HUD bars redraw only when their value changes and
+  the engine-flame/wave-arc overlays rebuild geometry at 30 Hz.

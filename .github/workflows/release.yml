@@ -1,4 +1,4 @@
-name: Release HTML
+name: Release
 
 on:
   workflow_dispatch:

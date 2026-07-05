@@ -51,9 +51,9 @@ its own banner. Short press Back to pause, hold Back to quit.
 
 ## Releases
 
-HTML releases are published through GitHub Actions:
+Releases (single-file HTML + Android APK) are published through GitHub Actions:
 
-1. Open `Actions` -> `Release HTML`.
+1. Open `Actions` -> `Release`.
 2. Click `Run workflow`.
 3. Enter a SemVer version without `v`, for example `0.1.1`.
 4. The workflow creates tag `v0.1.1`, a GitHub Release, and attaches `space-warrior-v0.1.1.html` plus `space-warrior-v0.1.1.apk`.

@@ -500,7 +500,7 @@ let currentTrack: Track | null = null;
 let stepIndex = 0;
 let barIndex = 0;
 
-function playBassNote(freq: number): void {
+function playBassNote(freq: number, at: number): void {
   const c = ensure();
   const target = musicGain!;
   const o1 = c.createOscillator();
@@ -511,21 +511,21 @@ function playBassNote(freq: number): void {
   o2.frequency.value = freq * 1.005; // detune
   const lp = c.createBiquadFilter();
   lp.type = 'lowpass';
-  lp.frequency.setValueAtTime(2200, c.currentTime);
-  lp.frequency.exponentialRampToValueAtTime(400, c.currentTime + 0.25);
+  lp.frequency.setValueAtTime(2200, at);
+  lp.frequency.exponentialRampToValueAtTime(400, at + 0.25);
   lp.Q.value = 6;
   const g = c.createGain();
-  g.gain.setValueAtTime(0, c.currentTime);
-  g.gain.linearRampToValueAtTime(0.18, c.currentTime + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.28);
+  g.gain.setValueAtTime(0, at);
+  g.gain.linearRampToValueAtTime(0.18, at + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + 0.28);
   o1.connect(lp); o2.connect(lp);
   lp.connect(g).connect(target);
-  o1.start(); o2.start();
-  o1.stop(c.currentTime + 0.30);
-  o2.stop(c.currentTime + 0.30);
+  o1.start(at); o2.start(at);
+  o1.stop(at + 0.30);
+  o2.stop(at + 0.30);
 }
 
-function playLeadNote(freq: number): void {
+function playLeadNote(freq: number, at: number): void {
   const c = ensure();
   const target = musicGain!;
   const o = c.createOscillator();
@@ -539,17 +539,17 @@ function playLeadNote(freq: number): void {
   lp.frequency.value = 3200;
   lp.Q.value = 3;
   const g = c.createGain();
-  g.gain.setValueAtTime(0, c.currentTime);
-  g.gain.linearRampToValueAtTime(0.12, c.currentTime + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.35);
+  g.gain.setValueAtTime(0, at);
+  g.gain.linearRampToValueAtTime(0.12, at + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + 0.35);
   o.connect(lp); o2.connect(lp);
   lp.connect(g).connect(target);
-  o.start(); o2.start();
-  o.stop(c.currentTime + 0.40);
-  o2.stop(c.currentTime + 0.40);
+  o.start(at); o2.start(at);
+  o.stop(at + 0.40);
+  o2.stop(at + 0.40);
 }
 
-function playPadNote(freq: number, duration: number): void {
+function playPadNote(freq: number, duration: number, at: number): void {
   const c = ensure();
   const target = musicGain!;
   const o = c.createOscillator();
@@ -563,42 +563,42 @@ function playPadNote(freq: number, duration: number): void {
   lp.frequency.value = 1100;
   lp.Q.value = 1;
   const g = c.createGain();
-  g.gain.setValueAtTime(0, c.currentTime);
-  g.gain.linearRampToValueAtTime(0.06, c.currentTime + Math.min(0.3, duration * 0.25));
-  g.gain.setValueAtTime(0.06, c.currentTime + duration * 0.7);
-  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + duration);
+  g.gain.setValueAtTime(0, at);
+  g.gain.linearRampToValueAtTime(0.06, at + Math.min(0.3, duration * 0.25));
+  g.gain.setValueAtTime(0.06, at + duration * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + duration);
   o.connect(lp); o2.connect(lp);
   lp.connect(g).connect(target);
-  o.start(); o2.start();
-  o.stop(c.currentTime + duration + 0.05);
-  o2.stop(c.currentTime + duration + 0.05);
+  o.start(at); o2.start(at);
+  o.stop(at + duration + 0.05);
+  o2.stop(at + duration + 0.05);
 }
 
-function playKick(): void {
+function playKick(at: number): void {
   const c = ensure();
   const target = musicGain!;
   const o = c.createOscillator();
   o.type = 'sine';
-  o.frequency.setValueAtTime(120, c.currentTime);
-  o.frequency.exponentialRampToValueAtTime(40, c.currentTime + 0.12);
+  o.frequency.setValueAtTime(120, at);
+  o.frequency.exponentialRampToValueAtTime(40, at + 0.12);
   const g = c.createGain();
-  g.gain.setValueAtTime(0.0, c.currentTime);
-  g.gain.linearRampToValueAtTime(0.55, c.currentTime + 0.005);
-  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.22);
+  g.gain.setValueAtTime(0.0, at);
+  g.gain.linearRampToValueAtTime(0.55, at + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
   o.connect(g).connect(target);
-  o.start();
-  o.stop(c.currentTime + 0.25);
+  o.start(at);
+  o.stop(at + 0.25);
   // Click for snap
   const click = c.createBufferSource();
   click.buffer = noiseBuf(c);
   const clickG = c.createGain();
-  clickG.gain.setValueAtTime(0.16, c.currentTime);
-  clickG.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.04);
+  clickG.gain.setValueAtTime(0.16, at);
+  clickG.gain.exponentialRampToValueAtTime(0.0001, at + 0.04);
   click.connect(clickG).connect(target);
-  click.start(c.currentTime, noiseOffset(0.05), 0.05);
+  click.start(at, noiseOffset(0.05), 0.05);
 }
 
-function playSnare(): void {
+function playSnare(at: number): void {
   const c = ensure();
   const target = musicGain!;
   const noise = c.createBufferSource();
@@ -608,25 +608,25 @@ function playSnare(): void {
   bp.frequency.value = 1800;
   bp.Q.value = 1.2;
   const g = c.createGain();
-  g.gain.setValueAtTime(0, c.currentTime);
-  g.gain.linearRampToValueAtTime(0.18, c.currentTime + 0.005);
-  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.15);
+  g.gain.setValueAtTime(0, at);
+  g.gain.linearRampToValueAtTime(0.18, at + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + 0.15);
   noise.connect(bp).connect(g).connect(target);
-  noise.start(c.currentTime, noiseOffset(0.18), 0.18);
+  noise.start(at, noiseOffset(0.18), 0.18);
   // Tone body
   const o = c.createOscillator();
   o.type = 'triangle';
   o.frequency.value = 220;
   const og = c.createGain();
-  og.gain.setValueAtTime(0, c.currentTime);
-  og.gain.linearRampToValueAtTime(0.08, c.currentTime + 0.005);
-  og.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.12);
+  og.gain.setValueAtTime(0, at);
+  og.gain.linearRampToValueAtTime(0.08, at + 0.005);
+  og.gain.exponentialRampToValueAtTime(0.0001, at + 0.12);
   o.connect(og).connect(target);
-  o.start();
-  o.stop(c.currentTime + 0.13);
+  o.start(at);
+  o.stop(at + 0.13);
 }
 
-function playHat(): void {
+function playHat(at: number): void {
   const c = ensure();
   const target = musicGain!;
   const noise = c.createBufferSource();
@@ -635,14 +635,14 @@ function playHat(): void {
   hp.type = 'highpass';
   hp.frequency.value = 7000;
   const g = c.createGain();
-  g.gain.setValueAtTime(0, c.currentTime);
-  g.gain.linearRampToValueAtTime(0.07, c.currentTime + 0.003);
-  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.045);
+  g.gain.setValueAtTime(0, at);
+  g.gain.linearRampToValueAtTime(0.07, at + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + 0.045);
   noise.connect(hp).connect(g).connect(target);
-  noise.start(c.currentTime, noiseOffset(0.05), 0.05);
+  noise.start(at, noiseOffset(0.05), 0.05);
 }
 
-function step(): void {
+function step(at: number): void {
   if (!currentTrack) return;
   const t = currentTrack;
   const bar = t.bars[barIndex];
@@ -651,25 +651,25 @@ function step(): void {
   // Pad on bar start
   if (i === 0) {
     const barDuration = (60 / t.bpm) * 4 * 0.98; // ≈ one bar of 4 beats
-    playPadNote(hzFromSemi(t.rootHz, bar.chord), barDuration);
+    playPadNote(hzFromSemi(t.rootHz, bar.chord), barDuration, at);
   }
   // Bass
   const b = bar.bass[i];
   if (b !== null && b !== undefined) {
-    playBassNote(hzFromSemi(t.rootHz, b + (t.bassOctave ?? 0)));
+    playBassNote(hzFromSemi(t.rootHz, b + (t.bassOctave ?? 0)), at);
   }
   // Lead
   const lead = bar.lead[i];
   if (lead !== null && lead !== undefined) {
-    playLeadNote(hzFromSemi(t.rootHz, lead + (t.leadOctave ?? 0)));
+    playLeadNote(hzFromSemi(t.rootHz, lead + (t.leadOctave ?? 0)), at);
   }
   // Drums: bar overrides → defaults
   const kick = bar.kick ?? t.defaultKick;
   const hat = bar.hat ?? t.defaultHat;
   const snare = bar.snare ?? t.defaultSnare;
-  if (kick[i]) playKick();
-  if (snare[i]) playSnare();
-  if (hat[i]) playHat();
+  if (kick[i]) playKick(at);
+  if (snare[i]) playSnare(at);
+  if (hat[i]) playHat(at);
 
   stepIndex++;
   if (stepIndex >= 16) {
@@ -678,16 +678,41 @@ function step(): void {
   }
 }
 
+// Lookahead scheduling: notes are placed on the AudioContext clock ahead of
+// real time, so timer jitter and main-thread work never bend the rhythm.
+// Playing notes "now" audibly stuttered on TVs with 100 ms audio buffers
+// (Sony Bravia), where the note-to-note spacing quantized to buffer edges.
+const MUSIC_LOOKAHEAD_S = 0.3;
+const MUSIC_TICK_MS = 80;
+let nextStepAt = 0;
+
 export function startMusic(theme: string): void {
   stopMusic();
-  ensure();
+  const c = ensure();
   if (!musicGain) return;
   const track = TRACKS[theme] ?? TRACKS.earth;
   currentTrack = track;
   stepIndex = 0;
   barIndex = 0;
-  const stepMs = (60 / track.bpm) * 1000 / 4; // 16th notes
-  stepTimer = window.setInterval(step, stepMs);
+  const stepS = (60 / track.bpm) / 4; // 16th notes
+  nextStepAt = c.currentTime + 0.08;
+  stepTimer = window.setInterval(() => {
+    if (!currentTrack) return;
+    // If the main thread was frozen past the lookahead window, jump the
+    // grid forward instead of firing a burst of catch-up notes.
+    while (nextStepAt < c.currentTime - 0.05) {
+      nextStepAt += stepS;
+      stepIndex++;
+      if (stepIndex >= 16) {
+        stepIndex = 0;
+        barIndex = (barIndex + 1) % currentTrack.bars.length;
+      }
+    }
+    while (nextStepAt < c.currentTime + MUSIC_LOOKAHEAD_S) {
+      step(nextStepAt);
+      nextStepAt += stepS;
+    }
+  }, MUSIC_TICK_MS);
 }
 
 export function stopMusic(): void {

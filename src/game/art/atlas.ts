@@ -88,8 +88,8 @@ export interface Atlas {
   };
   drops: Record<string, Texture>;
   stars: Texture[];     // [small, medA, medB, big]
-  /** Seamless star-field tiles for the far/mid parallax layers. */
-  starfields: { far: Texture; mid: Texture };
+  /** Seamless star-field tile for the scrolling background layer. */
+  starfields: { main: Texture };
   nebulae: Record<string, Texture>; // by theme key
   planets: Texture[];
   bases: { normal: Texture; burning: Texture };
@@ -258,9 +258,11 @@ export function buildAtlas(app: Application): Atlas {
     rt.source.style.addressMode = 'repeat';
     return rt;
   };
+  // One combined tile, not far+mid separately: every fullscreen translucent
+  // TilingSprite is a whole extra screen of overdraw per frame, and the Mali
+  // fill rate turned out to be the binding constraint on TV boxes.
   const starfields = {
-    far: bakeStarfield(30, [stars[0], stars[1]]),
-    mid: bakeStarfield(17, [stars[1], stars[2]]),
+    main: bakeStarfield(47, [stars[0], stars[1], stars[2]]),
   };
 
   const nebulae: Record<string, Texture> = {};

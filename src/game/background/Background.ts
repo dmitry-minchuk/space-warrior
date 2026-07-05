@@ -98,8 +98,7 @@ export class Background {
   bgFar: Container;
   bgMid: Container;
   bgNear: Container;
-  starFar: TiledStarLayer;
-  starMid: TiledStarLayer;
+  starMain: TiledStarLayer;
   starNear: StarLayer;
   nebula: TilingSprite | null = null;
   scrolls: ScrollSprite[] = [];
@@ -123,8 +122,7 @@ export class Background {
     this.bgMid = layers.bgMid;
     this.bgNear = layers.bgNear;
     const sTex = atlas.stars;
-    this.starFar = new TiledStarLayer(atlas.starfields.far, 18, this.bgFar);
-    this.starMid = new TiledStarLayer(atlas.starfields.mid, 45, this.bgFar);
+    this.starMain = new TiledStarLayer(atlas.starfields.main, 30, this.bgFar);
     // Near stars stay individual sprites: there are only 20 and they twinkle.
     this.starNear = new StarLayer([sTex[3], sTex[4]], 20, 90, this.bgMid);
   }
@@ -204,8 +202,7 @@ export class Background {
 
   update(dt: number): void {
     this.time += dt;
-    this.starFar.update(dt);
-    this.starMid.update(dt);
+    this.starMain.update(dt);
     this.starNear.update(dt);
     if (this.nebula) {
       this.nebula.tilePosition.y += 12 * dt;
@@ -525,8 +522,7 @@ export class Background {
   }
 
   destroy(): void {
-    this.starFar.destroy();
-    this.starMid.destroy();
+    this.starMain.destroy();
     this.starNear.destroy();
     this.clearLevelArt();
   }

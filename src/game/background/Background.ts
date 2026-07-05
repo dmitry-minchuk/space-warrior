@@ -1,4 +1,4 @@
-import { Container, Graphics, Sprite, TilingSprite } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture, TilingSprite } from 'pixi.js';
 import { GAME_HEIGHT, GAME_WIDTH } from '../../engine/constants';
 import type { Atlas } from '../art/atlas';
 import { themeForLevel } from '../palette';
@@ -75,13 +75,31 @@ class StarLayer {
   }
 }
 
+/** Dense far/mid layers as one scrolling tile each — a single scene-graph
+ *  node instead of 110/60 individual star sprites walked every frame. */
+class TiledStarLayer {
+  sprite: TilingSprite;
+  speed: number;
+  constructor(texture: Texture, speed: number, layer: Container) {
+    this.speed = speed;
+    this.sprite = new TilingSprite({ texture, width: GAME_WIDTH, height: GAME_HEIGHT });
+    layer.addChild(this.sprite);
+  }
+  update(dt: number): void {
+    this.sprite.tilePosition.y += this.speed * dt;
+  }
+  destroy(): void {
+    this.sprite.parent?.removeChild(this.sprite);
+  }
+}
+
 export class Background {
   atlas: Atlas;
   bgFar: Container;
   bgMid: Container;
   bgNear: Container;
-  starFar: StarLayer;
-  starMid: StarLayer;
+  starFar: TiledStarLayer;
+  starMid: TiledStarLayer;
   starNear: StarLayer;
   nebula: TilingSprite | null = null;
   scrolls: ScrollSprite[] = [];
@@ -105,8 +123,9 @@ export class Background {
     this.bgMid = layers.bgMid;
     this.bgNear = layers.bgNear;
     const sTex = atlas.stars;
-    this.starFar = new StarLayer([sTex[0], sTex[1]], 110, 18, this.bgFar);
-    this.starMid = new StarLayer([sTex[1], sTex[2]], 60, 45, this.bgFar);
+    this.starFar = new TiledStarLayer(atlas.starfields.far, 18, this.bgFar);
+    this.starMid = new TiledStarLayer(atlas.starfields.mid, 45, this.bgFar);
+    // Near stars stay individual sprites: there are only 20 and they twinkle.
     this.starNear = new StarLayer([sTex[3], sTex[4]], 20, 90, this.bgMid);
   }
 

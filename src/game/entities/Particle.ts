@@ -1,4 +1,4 @@
-import { Container, Sprite, Texture } from 'pixi.js';
+import { Container, Particle as PixiParticle, ParticleContainer, Texture } from 'pixi.js';
 
 export interface ParticleOpts {
   texture: Texture;
@@ -18,6 +18,32 @@ export interface ParticleOpts {
   tint?: number;
 }
 
+/**
+ * A pair of ParticleContainers (normal + additive) living inside an effects
+ * layer. ParticleContainer bypasses the general scene-graph walk and quad
+ * packer — with hundreds of live particles that walk was the top CPU cost on
+ * TV-box profiles. All particle textures share one atlas page (see atlas.ts),
+ * so each container renders as a single batch.
+ */
+export class ParticleLayer {
+  root = new Container();
+  private normal: ParticleContainer;
+  private additive: ParticleContainer;
+
+  constructor() {
+    const dynamicProperties = { position: true, scale: true, rotation: true, color: true };
+    this.normal = new ParticleContainer({ dynamicProperties });
+    this.additive = new ParticleContainer({ dynamicProperties });
+    this.additive.blendMode = 'add';
+    this.root.addChild(this.normal);
+    this.root.addChild(this.additive);
+  }
+
+  containerFor(blend: 'normal' | 'add'): ParticleContainer {
+    return blend === 'add' ? this.additive : this.normal;
+  }
+}
+
 export class Particle {
   alive = true;
   x = 0;
@@ -32,12 +58,12 @@ export class Particle {
   alpha = 1;
   fade = true;
   drag = 0;
-  sprite: Sprite;
-  private layer: Container | null = null;
+  p: PixiParticle;
+  private blend: 'normal' | 'add' = 'normal';
+  private host: ParticleContainer | null = null;
 
   constructor() {
-    this.sprite = new Sprite();
-    this.sprite.anchor.set(0.5);
+    this.p = new PixiParticle({ texture: Texture.WHITE, anchorX: 0.5, anchorY: 0.5 });
   }
 
   configure(o: ParticleOpts): void {
@@ -54,23 +80,26 @@ export class Particle {
     this.alpha = o.alpha ?? 1;
     this.fade = o.fade ?? true;
     this.drag = o.drag ?? 0;
-    this.sprite.texture = o.texture;
-    this.sprite.blendMode = o.blend === 'add' ? 'add' : 'normal';
-    this.sprite.rotation = o.rotation ?? 0;
-    this.sprite.scale.set(this.scale);
-    this.sprite.alpha = this.alpha;
-    this.sprite.tint = o.tint ?? 0xffffff;
-    this.sprite.position.set(this.x, this.y);
+    this.blend = o.blend === 'add' ? 'add' : 'normal';
+    const p = this.p;
+    p.texture = o.texture;
+    p.rotation = o.rotation ?? 0;
+    p.scaleX = this.scale;
+    p.scaleY = this.scale;
+    p.alpha = this.alpha;
+    p.tint = o.tint ?? 0xffffff;
+    p.x = this.x;
+    p.y = this.y;
   }
 
-  attach(layer: Container): void {
-    this.layer = layer;
-    layer.addChild(this.sprite);
+  attach(layer: ParticleLayer): void {
+    this.host = layer.containerFor(this.blend);
+    this.host.addParticle(this.p);
   }
 
   detach(): void {
-    if (this.layer) this.layer.removeChild(this.sprite);
-    this.layer = null;
+    if (this.host) this.host.removeParticle(this.p);
+    this.host = null;
   }
 
   update(dt: number): void {
@@ -88,16 +117,22 @@ export class Particle {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     const s = this.scale + (this.endScale - this.scale) * t;
-    this.sprite.position.set(this.x, this.y);
-    this.sprite.scale.set(s);
-    if (this.spin) this.sprite.rotation += this.spin * dt;
-    if (this.fade) this.sprite.alpha = this.alpha * (1 - t);
+    const p = this.p;
+    p.x = this.x;
+    p.y = this.y;
+    p.scaleX = s;
+    p.scaleY = s;
+    if (this.spin) p.rotation += this.spin * dt;
+    if (this.fade) p.alpha = this.alpha * (1 - t);
   }
 }
 
 export class ParticlePool {
   private free: Particle[] = [];
-  spawn(opts: ParticleOpts, layer: Container): Particle {
+  prewarm(n: number): void {
+    while (this.free.length < n) this.free.push(new Particle());
+  }
+  spawn(opts: ParticleOpts, layer: ParticleLayer): Particle {
     const p = this.free.pop() ?? new Particle();
     p.configure(opts);
     p.attach(layer);

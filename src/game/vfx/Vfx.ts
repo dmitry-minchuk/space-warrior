@@ -1,6 +1,5 @@
-import { Container } from 'pixi.js';
 import type { World } from '../world';
-import { Particle } from '../entities/Particle';
+import { Particle, ParticleLayer } from '../entities/Particle';
 
 /** Global particle ceiling. Trails self-limit in GameScene, but burst
  *  emitters (explosions, sparks, debris) used to bypass every cap — a boss
@@ -15,7 +14,7 @@ export function particleBudget(world: World, want: number): number {
   return want <= room ? want : room;
 }
 
-function spawnParticle(world: World, layer: Container, opts: Parameters<Particle['configure']>[0]): void {
+function spawnParticle(world: World, layer: ParticleLayer, opts: Parameters<Particle['configure']>[0]): void {
   // Absolute backstop so even "core" sprites cannot overrun the cap by far.
   if (world.particles.length >= PARTICLE_CAP + 40) return;
   const p = world.particlePool.spawn(opts, layer);
@@ -25,7 +24,7 @@ function spawnParticle(world: World, layer: Container, opts: Parameters<Particle
 export function emitEngineTrail(world: World, x: number, y: number): void {
   const a = world.atlas.particles;
   // Wide cyan plume — the bulk of the trail
-  spawnParticle(world, world.layers.effectsUnder, {
+  spawnParticle(world, world.layers.particlesUnder, {
     texture: a.softCyan,
     x: x + (Math.random() - 0.5) * 5,
     y,
@@ -39,7 +38,7 @@ export function emitEngineTrail(world: World, x: number, y: number): void {
     tint: 0xb8eaff,
   });
   // Bright white-hot core that fades fast — visually anchors the nozzle
-  spawnParticle(world, world.layers.effectsUnder, {
+  spawnParticle(world, world.layers.particlesUnder, {
     texture: a.softWhite,
     x,
     y,
@@ -53,7 +52,7 @@ export function emitEngineTrail(world: World, x: number, y: number): void {
   });
   // Occasional bright spark for crackle / motion read
   if (Math.random() < 0.22) {
-    spawnParticle(world, world.layers.effectsUnder, {
+    spawnParticle(world, world.layers.particlesUnder, {
       texture: a.hardWhite,
       x,
       y,
@@ -71,7 +70,7 @@ export function emitEngineTrail(world: World, x: number, y: number): void {
 
 export function emitEnemyEngine(world: World, x: number, y: number, tint = 0xff9a3a): void {
   const a = world.atlas.particles;
-  spawnParticle(world, world.layers.effectsUnder, {
+  spawnParticle(world, world.layers.particlesUnder, {
     texture: a.softOrange,
     x: x + (Math.random() - 0.5) * 6,
     y,
@@ -89,7 +88,7 @@ export function emitEnemyEngine(world: World, x: number, y: number, tint = 0xff9
 export function hitSpark(world: World, x: number, y: number, color = 0xffe2c8): void {
   const a = world.atlas.particles;
   // Bright white core flash (largest)
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: a.softWhite,
     x, y,
     vx: 0, vy: 0,
@@ -99,7 +98,7 @@ export function hitSpark(world: World, x: number, y: number, color = 0xffe2c8): 
     blend: 'add',
   });
   // Color-tinted secondary flash
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: a.softWhite,
     x, y,
     vx: 0, vy: 0,
@@ -111,7 +110,7 @@ export function hitSpark(world: World, x: number, y: number, color = 0xffe2c8): 
     alpha: 0.85,
   });
   // Expanding ring (uses the small explosion texture for shape)
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: world.atlas.explosions[0],
     x, y,
     vx: 0, vy: 0,
@@ -127,7 +126,7 @@ export function hitSpark(world: World, x: number, y: number, color = 0xffe2c8): 
   for (let i = 0; i < sparkles; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 140 + Math.random() * 220;
-    spawnParticle(world, world.layers.effectsOver, {
+    spawnParticle(world, world.layers.particlesOver, {
       texture: a.hardWhite,
       x, y,
       vx: Math.cos(angle) * speed,
@@ -145,7 +144,7 @@ export function hitSpark(world: World, x: number, y: number, color = 0xffe2c8): 
   for (let i = 0; i < embers; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 60 + Math.random() * 120;
-    spawnParticle(world, world.layers.effectsOver, {
+    spawnParticle(world, world.layers.particlesOver, {
       texture: a.hardOrange,
       x, y,
       vx: Math.cos(angle) * speed,
@@ -164,7 +163,7 @@ export function hitSpark(world: World, x: number, y: number, color = 0xffe2c8): 
 export function bigHit(world: World, x: number, y: number, color = 0xffd166): void {
   hitSpark(world, x, y, color);
   // Extra ring
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: world.atlas.explosions[1],
     x, y,
     vx: 0, vy: 0,
@@ -183,7 +182,7 @@ export function explosion(world: World, x: number, y: number, size: 'sm' | 'md' 
   const e = world.atlas.explosions;
   const ringTex = size === 'sm' ? e[0] : size === 'md' ? e[1] : e[2];
   // Big ring sprite
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: ringTex,
     x, y,
     vx: 0, vy: 0,
@@ -194,7 +193,7 @@ export function explosion(world: World, x: number, y: number, size: 'sm' | 'md' 
     alpha: 1,
   });
   // Bright flash
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: a.softWhite,
     x, y,
     vx: 0, vy: 0,
@@ -208,7 +207,7 @@ export function explosion(world: World, x: number, y: number, size: 'sm' | 'md' 
   for (let i = 0; i < n; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 80 + Math.random() * (size === 'lg' ? 280 : size === 'md' ? 200 : 140);
-    spawnParticle(world, world.layers.effectsOver, {
+    spawnParticle(world, world.layers.particlesOver, {
       texture: a.hardOrange,
       x, y,
       vx: Math.cos(angle) * speed,
@@ -226,7 +225,7 @@ export function explosion(world: World, x: number, y: number, size: 'sm' | 'md' 
   for (let i = 0; i < smokeCount; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 30 + Math.random() * 90;
-    spawnParticle(world, world.layers.effectsOver, {
+    spawnParticle(world, world.layers.particlesOver, {
       texture: a.softOrange,
       x, y,
       vx: Math.cos(angle) * speed,
@@ -247,7 +246,7 @@ export function explosion(world: World, x: number, y: number, size: 'sm' | 'md' 
 
 export function bombFlash(world: World): void {
   const a = world.atlas.particles;
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: a.softWhite,
     x: world.player.x,
     y: world.player.y,
@@ -264,7 +263,7 @@ export function bombFlash(world: World): void {
 
 export function pickupFlash(world: World, x: number, y: number, color: number): void {
   const a = world.atlas.particles;
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: a.softWhite,
     x, y,
     vx: 0, vy: 0,
@@ -286,7 +285,7 @@ export function missileBlast(world: World, x: number, y: number): void {
   const a = world.atlas.particles;
   const e = world.atlas.explosions;
   // Inner ring — fast, bright orange-yellow.
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: e[0],
     x, y,
     vx: 0, vy: 0,
@@ -298,7 +297,7 @@ export function missileBlast(world: World, x: number, y: number): void {
     alpha: 1,
   });
   // Outer shockwave — slower, wider, hotter.
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: e[1],
     x, y,
     vx: 0, vy: 0,
@@ -310,7 +309,7 @@ export function missileBlast(world: World, x: number, y: number): void {
     alpha: 0.85,
   });
   // Pure-white core flash.
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: a.softWhite,
     x, y,
     vx: 0, vy: 0,
@@ -321,7 +320,7 @@ export function missileBlast(world: World, x: number, y: number): void {
     alpha: 1,
   });
   // Color-tinted secondary glow that lingers.
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: a.softOrange,
     x, y,
     vx: 0, vy: 0,
@@ -337,7 +336,7 @@ export function missileBlast(world: World, x: number, y: number): void {
   for (let i = 0; i < shrapnel; i++) {
     const angle = (i / 14) * Math.PI * 2 + Math.random() * 0.3;
     const speed = 180 + Math.random() * 220;
-    spawnParticle(world, world.layers.effectsOver, {
+    spawnParticle(world, world.layers.particlesOver, {
       texture: a.hardOrange,
       x, y,
       vx: Math.cos(angle) * speed,
@@ -355,7 +354,7 @@ export function missileBlast(world: World, x: number, y: number): void {
   for (let i = 0; i < pinpoints; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 280 + Math.random() * 220;
-    spawnParticle(world, world.layers.effectsOver, {
+    spawnParticle(world, world.layers.particlesOver, {
       texture: a.hardWhite,
       x, y,
       vx: Math.cos(angle) * speed,
@@ -372,7 +371,7 @@ export function missileBlast(world: World, x: number, y: number): void {
   for (let i = 0; i < puffs; i++) {
     const angle = Math.random() * Math.PI * 2;
     const speed = 30 + Math.random() * 70;
-    spawnParticle(world, world.layers.effectsOver, {
+    spawnParticle(world, world.layers.particlesOver, {
       texture: a.softOrange,
       x, y,
       vx: Math.cos(angle) * speed,
@@ -397,7 +396,7 @@ export function missileBlast(world: World, x: number, y: number): void {
 export function muzzleFlash(world: World, x: number, y: number, color: number): void {
   const a = world.atlas.particles;
   // Bright white pop — primary visual cue.
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: a.softWhite,
     x, y,
     vx: 0, vy: 0,
@@ -408,7 +407,7 @@ export function muzzleFlash(world: World, x: number, y: number, color: number): 
     alpha: 1,
   });
   // Colored secondary ring matching the weapon palette.
-  spawnParticle(world, world.layers.effectsOver, {
+  spawnParticle(world, world.layers.particlesOver, {
     texture: a.softWhite,
     x, y,
     vx: 0, vy: 0,
@@ -423,7 +422,7 @@ export function muzzleFlash(world: World, x: number, y: number, color: number): 
   for (let i = 0; i < 3; i++) {
     const a2 = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
     const sp = 60 + Math.random() * 80;
-    spawnParticle(world, world.layers.effectsOver, {
+    spawnParticle(world, world.layers.particlesOver, {
       texture: a.hardWhite,
       x, y,
       vx: Math.cos(a2) * sp,

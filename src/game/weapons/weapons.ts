@@ -93,14 +93,34 @@ const LVL = (a: number, b: number, c: number, d: number, e: number) => (l: numbe
 
 const at = (table: number[], level: number): number => table[Math.max(0, Math.min(table.length - 1, level - 1))];
 
+
+// Per-level tables hoisted to module scope: fire() runs up to ~7×/s and used
+// to allocate these small arrays on every shot.
+const PULSE_COUNTS = [2, 3, 4, 5, 6];
+const PULSE_DAMAGES = [10, 8, 7, 7, 6.5];
+const SPREAD_COUNTS = [3, 4, 5, 6, 7];
+const SPREAD_DAMAGES = [8, 7, 7, 6.5, 6.5];
+const SPREAD_ANGLES = [0.18, 0.24, 0.32, 0.38, 0.46];
+const PLASMA_COUNTS = [1, 2, 2, 3, 3];
+const PLASMA_DAMAGES = [32, 22, 26, 22, 24];
+const MISSILE_COUNTS = [1, 2, 2, 3, 3];
+const MISSILE_DAMAGES = [36.4, 23.4, 28.6, 23.4, 26];
+const MISSILE_SPLASH_RADII = [32, 36, 40, 44, 48];
+const MISSILE_SPLASH_FRACTIONS = [0.5, 0.5, 0.5, 0.55, 0.6];
+const WAVE_COUNTS = [2, 3, 3, 4, 4];
+const WAVE_DAMAGES = [16, 13, 14, 13, 14];
+const LIGHTNING_DAMAGES = [14, 9, 11, 9, 10];
+const LIGHTNING_CHAINS = [1, 2, 2, 3, 3];
+const LIGHTNING_RANGES = [420, 520, 600, 660, 720];
+
 export const WEAPONS: Record<WeaponId, WeaponDef> = {
   pulse: {
     id: 'pulse',
     rate: LVL(6.4, 6.4, 6.4, 6.8, 7.2),
     fire(world, player, level, dmgMul) {
       // count 2/3/4/5/6, per-bullet damage drops as count grows so total grows ~20%/level
-      const counts = [2, 3, 4, 5, 6];
-      const damages = [10, 8, 7, 7, 6.5];
+      const counts = PULSE_COUNTS;
+      const damages = PULSE_DAMAGES;
       const n = at(counts, level);
       const dmg = at(damages, level) * dmgMul;
       // Evenly distributed streams across a small horizontal band.
@@ -121,9 +141,9 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     rate: LVL(4, 4, 4.4, 4.4, 4.8),
     fire(world, player, level, dmgMul) {
       // counts: 3/4/5/6/7, damages: 8/7/7/6.5/6.5
-      const counts = [3, 4, 5, 6, 7];
-      const damages = [8, 7, 7, 6.5, 6.5];
-      const spreads = [0.18, 0.24, 0.32, 0.38, 0.46];
+      const counts = SPREAD_COUNTS;
+      const damages = SPREAD_DAMAGES;
+      const spreads = SPREAD_ANGLES;
       const n = at(counts, level);
       const dmg = at(damages, level) * dmgMul;
       const spread = at(spreads, level);
@@ -142,8 +162,8 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     rate: LVL(2.4, 2.4, 2.8, 2.8, 3.2),
     fire(world, player, level, dmgMul) {
       // counts 1/2/2/3/3 — count grows slowly, damage stays moderate
-      const counts = [1, 2, 2, 3, 3];
-      const damages = [32, 22, 26, 22, 24];
+      const counts = PLASMA_COUNTS;
+      const damages = PLASMA_DAMAGES;
       const n = at(counts, level);
       const dmg = at(damages, level) * dmgMul;
       const col = MUZZLE_COLORS.plasma;
@@ -172,12 +192,12 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     rate: LVL(1.0625, 1.0625, 1.19, 1.19, 1.275),
     fire(world, player, level, dmgMul) {
       // counts 1/2/2/3/3, dmg per missile drops slightly so total grows gently
-      const counts = [1, 2, 2, 3, 3];
-      const damages = [36.4, 23.4, 28.6, 23.4, 26];
+      const counts = MISSILE_COUNTS;
+      const damages = MISSILE_DAMAGES;
       // Splash widens and gets heavier with level so missiles clear clusters
       // — single direct hits used to leave neighbouring scouts/drones alive.
-      const splashRadii = [32, 36, 40, 44, 48];
-      const splashFractions = [0.5, 0.5, 0.5, 0.55, 0.6];
+      const splashRadii = MISSILE_SPLASH_RADII;
+      const splashFractions = MISSILE_SPLASH_FRACTIONS;
       const n = at(counts, level);
       const dmg = at(damages, level) * dmgMul;
       const splashR = at(splashRadii, level);
@@ -200,8 +220,8 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     rate: LVL(3.2, 3.2, 3.6, 3.6, 4),
     fire(world, player, level, dmgMul) {
       // counts 2/3/3/4/4, damages 16/13/14/13/14
-      const counts = [2, 3, 3, 4, 4];
-      const damages = [16, 13, 14, 13, 14];
+      const counts = WAVE_COUNTS;
+      const damages = WAVE_DAMAGES;
       const ampTab = [60, 80, 100, 110, 120];
       const freqTab = [6, 7, 7.5, 8, 8.5];
       const n = at(counts, level);
@@ -231,9 +251,9 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
     fire(world, player, level, dmgMul) {
       // chains 1/2/2/3/3, damage 14/9/11/9/10. Range is much bigger now and
       // chains can travel in any direction (including behind/below the player).
-      const damages = [14, 9, 11, 9, 10];
-      const chainTab = [1, 2, 2, 3, 3];
-      const rangeTab = [420, 520, 600, 660, 720];
+      const damages = LIGHTNING_DAMAGES;
+      const chainTab = LIGHTNING_CHAINS;
+      const rangeTab = LIGHTNING_RANGES;
       const dmg = at(damages, level) * dmgMul;
       const maxChain = at(chainTab, level);
       const maxRange = at(rangeTab, level);
@@ -242,6 +262,7 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
       let fromY = player.y - 18;
       muzzleFlash(world, fromX, fromY, MUZZLE_COLORS.lightning);
       const visited = new Set<number>();
+      const maxRange2 = maxRange * maxRange;
       for (let i = 0; i < maxChain; i++) {
         let best = null as null | { e: { id: number; alive: boolean; x: number; y: number; damage: (n: number) => boolean; radius: number }; d: number };
         for (const e of world.enemies) {
@@ -249,17 +270,17 @@ export const WEAPONS: Record<WeaponId, WeaponDef> = {
           // No direction filter — lightning can arc anywhere within range.
           const dx = e.x - fromX;
           const dy = e.y - fromY;
-          const d = Math.hypot(dx, dy);
-          if (d < maxRange && (!best || d < best.d)) {
-            best = { e: e as any, d };
+          const d2 = dx * dx + dy * dy;
+          if (d2 < maxRange2 && (!best || d2 < best.d)) {
+            best = { e: e as any, d: d2 };
           }
         }
         if (world.boss && world.boss.alive && !world.boss.entering && !world.boss.dying && !visited.has(world.boss.id)) {
           const dx = world.boss.x - fromX;
           const dy = world.boss.y - fromY;
-          const d = Math.hypot(dx, dy);
-          if (d < maxRange && (!best || d < best.d)) {
-            best = { e: world.boss as any, d };
+          const d2 = dx * dx + dy * dy;
+          if (d2 < maxRange2 && (!best || d2 < best.d)) {
+            best = { e: world.boss as any, d: d2 };
           }
         }
         if (!best) break;
@@ -403,7 +424,7 @@ function spawnLightningImpactParticles(world: World, x: number, y: number, pal: 
     blend: 'add',
     tint: pal.glow,
     alpha: 0.95,
-  }, world.layers.effectsOver);
+  }, world.layers.particlesOver);
   world.particles.push(flash);
   // Radial electric sparks
   for (let i = 0; i < 9; i++) {
@@ -420,7 +441,7 @@ function spawnLightningImpactParticles(world: World, x: number, y: number, pal: 
       blend: 'add',
       tint: Math.random() < 0.5 ? pal.core : pal.glow,
       drag: 3,
-    }, world.layers.effectsOver);
+    }, world.layers.particlesOver);
     world.particles.push(p);
   }
 }

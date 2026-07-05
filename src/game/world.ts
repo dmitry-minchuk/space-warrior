@@ -9,7 +9,7 @@ import { EnemyPool } from './entities/Enemy';
 import type { Drop } from './entities/Drop';
 import { DropPool } from './entities/Drop';
 import type { Boss } from './entities/Boss';
-import type { Particle } from './entities/Particle';
+import type { Particle, ParticleLayer } from './entities/Particle';
 import { ParticlePool } from './entities/Particle';
 import { FloatingTextPool, type FloatingText } from './vfx/FloatingText';
 import type { Telemetry } from './telemetry';
@@ -33,6 +33,9 @@ export interface World {
     projectiles: Container;
     effectsOver: Container;
     hud: Container;
+    /** ParticleContainer pairs hosted inside effectsUnder / effectsOver. */
+    particlesUnder: ParticleLayer;
+    particlesOver: ParticleLayer;
   };
   player: Player;
   projectiles: Projectile[];
@@ -40,6 +43,11 @@ export interface World {
   drops: Drop[];
   particles: Particle[];
   floats: FloatingText[];
+  /** Per-frame partitions of `projectiles` (rebuilt in runCollisions): the
+   *  intercept check and enemy AI used to scan the full mixed list — O(P²)
+   *  at late-game density. */
+  playerShots: Projectile[];
+  enemyShots: Projectile[];
   boss: Boss | null;
   bossArrivedAt: number;
   time: number;
@@ -73,6 +81,8 @@ export function makeEmptyWorld(): Partial<World> {
     drops: [],
     particles: [],
     floats: [],
+    playerShots: [],
+    enemyShots: [],
     boss: null,
     bossArrivedAt: -1,
     time: 0,

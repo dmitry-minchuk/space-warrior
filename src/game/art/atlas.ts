@@ -1,4 +1,5 @@
-import { Application, Texture } from 'pixi.js';
+import { Application, Container, Rectangle, RenderTexture, Sprite, Texture } from 'pixi.js';
+import { ANTIALIAS, BAKE_RESOLUTION } from '../../engine/quality';
 import { Forge } from './forge';
 import {
   drawBomber,
@@ -87,6 +88,8 @@ export interface Atlas {
   };
   drops: Record<string, Texture>;
   stars: Texture[];     // [small, medA, medB, big]
+  /** Seamless star-field tiles for the far/mid parallax layers. */
+  starfields: { far: Texture; mid: Texture };
   nebulae: Record<string, Texture>; // by theme key
   planets: Texture[];
   bases: { normal: Texture; burning: Texture };
@@ -219,6 +222,47 @@ export function buildAtlas(app: Application): Atlas {
     forge.bakeCentered(14, 14, (r) => drawStar(r, 0xffa166, true)),
   ];
 
+  // Far/mid star layers as seamless tiles: 170 individual star sprites used
+  // to be walked and quad-packed by the renderer every frame; a TilingSprite
+  // costs one node. Stars near an edge are wrap-duplicated so tiling shows
+  // no seams. Baked at resolution 1 — these are 6-14 px dots.
+  const bakeStarfield = (count: number, texs: Texture[]): Texture => {
+    const SIZE = 512;
+    const MARGIN = 16;
+    const root = new Container();
+    const place = (x: number, y: number, t: Texture, alpha: number, scale: number): void => {
+      const s = new Sprite(t);
+      s.anchor.set(0.5);
+      s.position.set(x, y);
+      s.alpha = alpha;
+      s.scale.set(scale);
+      root.addChild(s);
+    };
+    for (let i = 0; i < count; i++) {
+      const t = texs[i % texs.length];
+      const x = Math.random() * SIZE;
+      const y = Math.random() * SIZE;
+      const alpha = 0.5 + Math.random() * 0.5;
+      const scale = 0.5 + Math.random() * 0.8;
+      place(x, y, t, alpha, scale);
+      if (x < MARGIN) place(x + SIZE, y, t, alpha, scale);
+      if (x > SIZE - MARGIN) place(x - SIZE, y, t, alpha, scale);
+      if (y < MARGIN) place(x, y + SIZE, t, alpha, scale);
+      if (y > SIZE - MARGIN) place(x, y - SIZE, t, alpha, scale);
+    }
+    // No MSAA here: the resolve can leave a bright 1px edge on the render
+    // target, and tiling repeats that edge as a line across the screen.
+    const rt = RenderTexture.create({ width: SIZE, height: SIZE, resolution: 1, antialias: false });
+    app.renderer.render({ container: root, target: rt, clear: true });
+    root.destroy({ children: true });
+    rt.source.style.addressMode = 'repeat';
+    return rt;
+  };
+  const starfields = {
+    far: bakeStarfield(30, [stars[0], stars[1]]),
+    mid: bakeStarfield(17, [stars[1], stars[2]]),
+  };
+
   const nebulae: Record<string, Texture> = {};
   Object.entries(THEMES).forEach(([key, theme], i) => {
     nebulae[key] = forge.bakeCentered(640, 380, (r) => drawNebula(r, 1000 + i, theme.nebula));
@@ -348,21 +392,65 @@ export function buildAtlas(app: Application): Atlas {
     asteroids.push(forge.bakeCentered(R * 2 + 8, R * 2 + 8, (r) => drawAsteroid(r, 100 + i, R)));
   }
 
-  const particles = {
-    softWhite: forge.bakeCentered(24, 24, (r) => drawParticleSoft(r, 0xffffff)),
-    softOrange: forge.bakeCentered(24, 24, (r) => drawParticleSoft(r, 0xff9a3a)),
-    softCyan: forge.bakeCentered(24, 24, (r) => drawParticleSoft(r, 0x6cdfff)),
-    softRed: forge.bakeCentered(24, 24, (r) => drawParticleSoft(r, 0xff5050)),
-    softPurple: forge.bakeCentered(24, 24, (r) => drawParticleSoft(r, 0xc066ff)),
-    hardWhite: forge.bakeCentered(6, 6, (r) => drawParticleHard(r, 0xffffff)),
-    hardOrange: forge.bakeCentered(6, 6, (r) => drawParticleHard(r, 0xffaa66)),
-  };
-
-  const explosions: Texture[] = [
-    forge.bakeCentered(80, 80, (r) => drawExplosionRing(r, 0xffce66, 32)),
-    forge.bakeCentered(120, 120, (r) => drawExplosionRing(r, 0xff8044, 48)),
-    forge.bakeCentered(200, 200, (r) => drawExplosionRing(r, 0xffd166, 80)),
+  // All particle glyphs live on ONE texture page: the ParticleContainer fast
+  // path batches per texture source, and Mali GPUs only expose 8 texture
+  // units — 10 separate particle RenderTextures used to force batch flushes.
+  const PPAD = 4;
+  const pageDefs: Array<{ w: number; h: number; draw: (c: Container) => void }> = [
+    { w: 200, h: 200, draw: (r) => drawExplosionRing(r, 0xffd166, 80) },
+    { w: 120, h: 120, draw: (r) => drawExplosionRing(r, 0xff8044, 48) },
+    { w: 80, h: 80, draw: (r) => drawExplosionRing(r, 0xffce66, 32) },
+    { w: 24, h: 24, draw: (r) => drawParticleSoft(r, 0xffffff) },
+    { w: 24, h: 24, draw: (r) => drawParticleSoft(r, 0xff9a3a) },
+    { w: 24, h: 24, draw: (r) => drawParticleSoft(r, 0x6cdfff) },
+    { w: 24, h: 24, draw: (r) => drawParticleSoft(r, 0xff5050) },
+    { w: 24, h: 24, draw: (r) => drawParticleSoft(r, 0xc066ff) },
+    { w: 6, h: 6, draw: (r) => drawParticleHard(r, 0xffffff) },
+    { w: 6, h: 6, draw: (r) => drawParticleHard(r, 0xffaa66) },
   ];
+  const PAGE_W = 512;
+  const PAGE_H = 256;
+  const pageRoot = new Container();
+  const frames: Rectangle[] = [];
+  {
+    let px = PPAD;
+    let py = PPAD;
+    let rowH = 0;
+    for (const def of pageDefs) {
+      if (px + def.w + PPAD > PAGE_W) {
+        px = PPAD;
+        py += rowH + PPAD;
+        rowH = 0;
+      }
+      const inner = new Container();
+      inner.position.set(px + def.w / 2, py + def.h / 2);
+      def.draw(inner);
+      pageRoot.addChild(inner);
+      frames.push(new Rectangle(px, py, def.w, def.h));
+      px += def.w + PPAD;
+      rowH = Math.max(rowH, def.h);
+    }
+  }
+  const particlePage = RenderTexture.create({
+    width: PAGE_W,
+    height: PAGE_H,
+    resolution: BAKE_RESOLUTION,
+    antialias: ANTIALIAS,
+  });
+  app.renderer.render({ container: pageRoot, target: particlePage, clear: true });
+  pageRoot.destroy({ children: true });
+  const sub = frames.map((f) => new Texture({ source: particlePage.source, frame: f }));
+
+  const explosions: Texture[] = [sub[2], sub[1], sub[0]];
+  const particles = {
+    softWhite: sub[3],
+    softOrange: sub[4],
+    softCyan: sub[5],
+    softRed: sub[6],
+    softPurple: sub[7],
+    hardWhite: sub[8],
+    hardOrange: sub[9],
+  };
 
   return {
     player: forge.bakeCentered(96, 100, drawPlayer),
@@ -371,6 +459,7 @@ export function buildAtlas(app: Application): Atlas {
     proj,
     drops,
     stars,
+    starfields,
     nebulae,
     planets,
     bases,

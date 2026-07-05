@@ -1,20 +1,27 @@
 import { GAME_HEIGHT, GAME_WIDTH } from '../../engine/constants';
 import type { Enemy, MovementUpdater } from '../entities/Enemy';
 
-// Helper: signed distance to nearest player projectile (used by evasive jukes).
-function nearestPlayerShotX(e: Enemy, world: import('../world').World): { dx: number; dist: number } | null {
-  let best: { dx: number; dist: number } | null = null;
-  for (const p of world.projectiles) {
-    if (!p.alive || p.owner !== 'player') continue;
+// Helper: nearest player projectile by squared distance (evasive jukes only
+// compare against a threshold, so the sqrt was pure waste). Reads the
+// player-shot partition rebuilt each frame by runCollisions — one frame of
+// staleness is invisible at a 120 px juke radius.
+function nearestPlayerShotX(e: Enemy, world: import('../world').World): { dx: number; d2: number } | null {
+  let bestDx = 0;
+  let bestD2 = Infinity;
+  for (const p of world.playerShots) {
+    if (!p.alive) continue;
     // Only consider shots that could hit us soon (above us, moving up)
     if (p.y > e.y + 200) continue;
     if (p.y < e.y - 400) continue;
     const dx = p.x - e.x;
     const dy = p.y - e.y;
-    const d = Math.hypot(dx, dy);
-    if (!best || d < best.dist) best = { dx, dist: d };
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      bestDx = dx;
+    }
   }
-  return best;
+  return bestD2 === Infinity ? null : { dx: bestDx, d2: bestD2 };
 }
 
 export const moveStraight: MovementUpdater = (e, dt) => {
@@ -174,7 +181,7 @@ export const moveEvasiveSine: MovementUpdater = (e, dt, world) => {
   const baseSin = Math.sin(e.phase) * e.amp;
   // Juke: if a shot is close, shift baseX away from it
   const near = nearestPlayerShotX(e, world);
-  if (near && near.dist < 120) {
+  if (near && near.d2 < 120 * 120) {
     e.baseX += Math.sign(-near.dx) * 240 * dt;
   }
   // Clamp baseX inside playfield

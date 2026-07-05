@@ -5,6 +5,7 @@ import { Input } from '../../engine/input';
 import { startMusic, stopMusic } from '../../engine/audio';
 import type { Atlas, EnemyKey } from '../art/atlas';
 import { Player } from '../entities/Player';
+import { ParticleLayer } from '../entities/Particle';
 import { Boss } from '../entities/Boss';
 import type { Projectile } from '../entities/Projectile';
 import type { Enemy } from '../entities/Enemy';
@@ -92,6 +93,11 @@ export class GameScene extends Scene {
   // Persistent Graphics used to draw flickering arcs between active wave-gun
   // projectiles each frame. Cleared and redrawn every update.
   waveArcGfx!: Graphics;
+  plasmaArcGfx!: Graphics;
+  // Live plasma arcs (fade over 0.1 s) drawn into the shared plasmaArcGfx —
+  // a Graphics per arc used to be created and destroyed ~28×/s mid-combat.
+  private plasmaArcs: Array<{ outer: number[]; inner: number[]; tx: number; ty: number; age: number }> = [];
+  private waveArcRedrawT = 0;
   // Per-run telemetry sink. Dev-server pipes flushes to disk; in production
   // builds the fetch calls just silently fail.
   telemetry!: Telemetry;
@@ -125,7 +131,11 @@ export class GameScene extends Scene {
       projectiles: new Container(),
       effectsOver: new Container(),
       hud: new Container(),
+      particlesUnder: new ParticleLayer(),
+      particlesOver: new ParticleLayer(),
     };
+    layers.effectsUnder.addChild(layers.particlesUnder.root);
+    layers.effectsOver.addChild(layers.particlesOver.root);
     this.shakeRoot.addChild(layers.bgFar);
     this.shakeRoot.addChild(layers.bgMid);
     this.shakeRoot.addChild(layers.bgNear);
@@ -157,12 +167,20 @@ export class GameScene extends Scene {
       telemetry: this.telemetry,
     } as World;
 
+    // Pre-allocate the pools to campaign peaks so no wave, barrage, or
+    // explosion pays object construction cost mid-combat.
+    this.world.enemyPool.prewarm(24);
+    this.world.projectilePool.prewarm(120);
+    this.world.particlePool.prewarm(280);
+
     this.background = new Background(this.atlas, layers);
     this.hud = new Hud(layers.hud, this.atlas);
 
     // Wave-arc overlay — drawn on top of projectiles each frame.
     this.waveArcGfx = new Graphics();
     layers.projectiles.addChild(this.waveArcGfx);
+    this.plasmaArcGfx = new Graphics();
+    layers.projectiles.addChild(this.plasmaArcGfx);
 
     this.telemetry.startLevel(this.state.level);
     this.startLevelFlow(this.state.level);
@@ -376,7 +394,7 @@ export class GameScene extends Scene {
             blend: 'add',
             tint: 0xffce66,
             alpha: 0.9,
-          }, this.world.layers.effectsUnder);
+          }, this.world.layers.particlesUnder);
           this.world.particles.push(pa);
         }
         // Smoke trail (less frequent, longer life)
@@ -393,7 +411,7 @@ export class GameScene extends Scene {
             blend: 'normal',
             tint: 0x4a4a4a,
             alpha: 0.5,
-          }, this.world.layers.effectsUnder);
+          }, this.world.layers.particlesUnder);
           this.world.particles.push(pa);
         }
       }
@@ -413,7 +431,8 @@ export class GameScene extends Scene {
     }
 
     // Wave-arc overlay — crackle between active wave charges in flight.
-    this.renderWaveArcs();
+    this.renderWaveArcs(dt);
+    this.renderPlasmaArcs(dt);
 
     // Update drops
     for (const d of this.world.drops) {
@@ -554,14 +573,26 @@ export class GameScene extends Scene {
     // piercing projectiles use one-hit-per-target lock via hitIds.
     const COOLDOWN = 0.5;
 
-    // Player projectile vs enemies / boss
+    // Partition once: every check below only cares about one side, and the
+    // enemy evasive AI reuses playerShots on the next frame.
+    const playerShots = this.world.playerShots;
+    const enemyShots = this.world.enemyShots;
+    playerShots.length = 0;
+    enemyShots.length = 0;
     for (const p of this.world.projectiles) {
-      if (!p.alive || p.owner !== 'player') continue;
+      if (!p.alive) continue;
+      if (p.owner === 'player') playerShots.push(p);
+      else enemyShots.push(p);
+    }
+
+    // Player projectile vs enemies / boss
+    for (const p of playerShots) {
+      if (!p.alive) continue;
       const useCooldown = p.piercing && p.visual === 'wave';
 
       // Player shots can intercept weaker enemy projectiles; boss specials can opt out.
-      for (const ep of this.world.projectiles) {
-        if (!ep.alive || ep.owner !== 'enemy' || !ep.interceptible) continue;
+      for (const ep of enemyShots) {
+        if (!ep.alive || !ep.interceptible) continue;
         const dx = ep.x - p.x;
         const dy = ep.y - p.y;
         const r = ep.radius + p.radius;
@@ -669,8 +700,8 @@ export class GameScene extends Scene {
     }
     // Enemy projectile vs player
     if (this.world.player.alive && this.world.player.iframes <= 0) {
-      for (const p of this.world.projectiles) {
-        if (!p.alive || p.owner !== 'enemy') continue;
+      for (const p of enemyShots) {
+        if (!p.alive) continue;
         const dx = this.world.player.x - p.x;
         const dy = this.world.player.y - p.y;
         const r = this.world.player.hitRadius + p.radius;
@@ -862,7 +893,12 @@ export class GameScene extends Scene {
    *  crackle with violet/cyan arcs between nearby charges. Visual only —
    *  no damage (wave already pierces). Pairs each charge with its nearest
    *  neighbour and dedupes via a numeric "this index pairs to i" array. */
-  private renderWaveArcs(): void {
+  private renderWaveArcs(dt: number): void {
+    // Cosmetic flicker: ~30 Hz is indistinguishable from per-frame redraws,
+    // and each redraw re-tessellates and re-uploads the whole overlay.
+    this.waveArcRedrawT += dt;
+    if (this.waveArcRedrawT < 1 / 30) return;
+    this.waveArcRedrawT = 0;
     const g = this.waveArcGfx;
     g.clear();
     const xs = this._waveXs;
@@ -962,51 +998,61 @@ export class GameScene extends Scene {
       if (b && target.id === b.id) {
         this.onBossDeath(b);
       } else {
-        const e = this.world.enemies.find((enemy) => enemy.id === target.id);
-        if (e) this.onEnemyDeath(e);
+        for (const enemy of this.world.enemies) {
+          if (enemy.id === target.id) {
+            this.onEnemyDeath(enemy);
+            break;
+          }
+        }
       }
     }
-    // Visual: short-lived Graphics overlay drawing a jagged arc.
-    const g = new Graphics();
+    // Visual: record the jagged paths once; renderPlasmaArcs redraws them
+    // into the shared overlay with an alpha fade until they expire.
     const steps = 6;
     const dx = target.x - fromX;
     const dy = target.y - fromY;
     const dist = Math.hypot(dx, dy) || 1;
     const ox = -dy / dist, oy = dx / dist;
-    const make = (jit: number): Array<[number, number]> => {
-      const pts: Array<[number, number]> = [[fromX, fromY]];
+    const make = (jit: number): number[] => {
+      const pts: number[] = [fromX, fromY];
       for (let i = 1; i < steps; i++) {
         const t = i / steps;
         const offs = (Math.random() - 0.5) * jit;
-        pts.push([fromX + dx * t + ox * offs, fromY + dy * t + oy * offs]);
+        pts.push(fromX + dx * t + ox * offs, fromY + dy * t + oy * offs);
       }
-      pts.push([target.x, target.y]);
+      pts.push(target.x, target.y);
       return pts;
     };
-    const outer = make(8);
-    const inner = make(4);
-    // Outer glow
-    g.moveTo(outer[0][0], outer[0][1]);
-    for (let i = 1; i < outer.length; i++) g.lineTo(outer[i][0], outer[i][1]);
-    g.stroke({ color: 0xb8ffb0, width: 5, alpha: 0.35 });
-    // Mid
-    g.moveTo(inner[0][0], inner[0][1]);
-    for (let i = 1; i < inner.length; i++) g.lineTo(inner[i][0], inner[i][1]);
-    g.stroke({ color: 0xb8ffb0, width: 2.5, alpha: 0.65 });
-    // Core
-    g.moveTo(inner[0][0], inner[0][1]);
-    for (let i = 1; i < inner.length; i++) g.lineTo(inner[i][0], inner[i][1]);
-    g.stroke({ color: 0xffffff, width: 1, alpha: 0.95 });
-    // Endpoint sparkle
-    g.circle(target.x, target.y, 6).fill({ color: 0xb8ffb0, alpha: 0.4 });
-    g.circle(target.x, target.y, 3).fill(0xffffff);
-    this.world.layers.projectiles.addChild(g);
-    // Schedule destroy 0.1s later via deferred queue (game-time).
-    const at = this.world.time + 0.1;
-    this.deferredActions.push({ at, fn: () => {
-      g.parent?.removeChild(g);
-      g.destroy();
-    }});
+    this.plasmaArcs.push({ outer: make(8), inner: make(4), tx: target.x, ty: target.y, age: 0 });
+  }
+
+  /** Redraw all live plasma arcs into the shared overlay Graphics. */
+  private renderPlasmaArcs(dt: number): void {
+    const arcs = this.plasmaArcs;
+    const g = this.plasmaArcGfx;
+    if (arcs.length === 0) return;
+    g.clear();
+    const LIFE = 0.1;
+    const strokePath = (buf: number[], color: number, width: number, alpha: number): void => {
+      g.moveTo(buf[0], buf[1]);
+      for (let k = 2; k < buf.length; k += 2) g.lineTo(buf[k], buf[k + 1]);
+      g.stroke({ color, width, alpha });
+    };
+    for (let i = arcs.length - 1; i >= 0; i--) {
+      const arc = arcs[i];
+      arc.age += dt;
+      if (arc.age >= LIFE) {
+        arcs.splice(i, 1);
+        continue;
+      }
+      const m = 1 - arc.age / LIFE;
+      strokePath(arc.outer, 0xb8ffb0, 5, 0.35 * m);
+      strokePath(arc.inner, 0xb8ffb0, 2.5, 0.65 * m);
+      strokePath(arc.inner, 0xffffff, 1, 0.95 * m);
+      g.circle(arc.tx, arc.ty, 6).fill({ color: 0xb8ffb0, alpha: 0.4 * m });
+      g.circle(arc.tx, arc.ty, 3).fill({ color: 0xffffff, alpha: m });
+    }
+    if (arcs.length === 0) g.clear();
   }
 
   /** Plasma hit shockwave — visual ring + AoE damage to nearby enemies
@@ -1024,7 +1070,7 @@ export class GameScene extends Scene {
       blend: 'add',
       tint: 0xb8ffb0,
       alpha: 0.95,
-    }, this.world.layers.effectsOver);
+    }, this.world.layers.particlesOver);
     this.world.particles.push(ring);
     // Bright flash core
     const flash = this.world.particlePool.spawn({
@@ -1037,7 +1083,7 @@ export class GameScene extends Scene {
       blend: 'add',
       tint: 0xb8ffb0,
       alpha: 0.9,
-    }, this.world.layers.effectsOver);
+    }, this.world.layers.particlesOver);
     this.world.particles.push(flash);
     // AoE damage to nearby enemies
     const R = 42;
@@ -1117,7 +1163,7 @@ export class GameScene extends Scene {
         tint: big ? 0xff7733 : 0xffaa55,
         drag: 1.5,
         blend: 'add',
-      }, this.world.layers.effectsOver);
+      }, this.world.layers.particlesOver);
       this.world.particles.push(p);
     }
     void radius;  // reserved for future scaling
@@ -1145,7 +1191,7 @@ export class GameScene extends Scene {
         tint: big ? 0xff7733 : 0xffaa55,
         drag: 1.2,
         blend: 'add',
-      }, this.world.layers.effectsOver);
+      }, this.world.layers.particlesOver);
       this.world.particles.push(p);
     }
     // Bright smoke ring
@@ -1164,7 +1210,7 @@ export class GameScene extends Scene {
         tint: 0x2a1a14,
         alpha: 0.6,
         drag: 0.8,
-      }, this.world.layers.effectsOver);
+      }, this.world.layers.particlesOver);
       this.world.particles.push(p);
     }
   }

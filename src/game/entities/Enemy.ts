@@ -138,6 +138,10 @@ export class Enemy {
 
 export class EnemyPool {
   private free: Enemy[] = [];
+  /** Pre-allocate so the largest wave never pays construction cost mid-run. */
+  prewarm(n: number): void {
+    while (this.free.length < n) this.free.push(new Enemy());
+  }
   spawn(arch: EnemyArchetype, x: number, y: number, layer: Container, opts: Record<string, number | string> = {}): Enemy {
     const e = this.free.pop() ?? new Enemy();
     e.configure(arch, x, y, opts);

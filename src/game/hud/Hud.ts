@@ -175,17 +175,25 @@ export class Hud {
     this.flashState = { t: 0, max, color };
   }
 
-  update(dt: number, world: World): void {
-    // HP bar
-    const pct = Math.max(0, world.player.hp / world.player.maxHp);
-    this.hpBarFill.clear();
-    const w = 240 * pct;
-    const col = pct > 0.5 ? 0x44ffa4 : pct > 0.25 ? 0xffd166 : 0xff5050;
-    this.hpBarFill.roundRect(0, 0, w, 18, 4).fill({ color: col, alpha: 0.95 });
-    this.hpBarFill.roundRect(0, 0, w, 6, 4).fill({ color: 0xffffff, alpha: 0.18 });
-    this.hpText.text = `${Math.ceil(world.player.hp)} / 100`;
+  // Dirty-tracking: HUD Graphics used to be cleared and rebuilt every frame
+  // even when nothing changed — each rebuild re-tessellates and re-uploads.
+  private lastHpPct = -1;
+  private lastPipsKey = '';
+  private lastBossPct = -1;
 
-    this.laserHeatBar.clear();
+  update(dt: number, world: World): void {
+    // HP bar — redraw only when the visible width would change (~1px steps).
+    const pct = Math.max(0, world.player.hp / world.player.maxHp);
+    const qpct = Math.round(pct * 240) / 240;
+    if (qpct !== this.lastHpPct) {
+      this.lastHpPct = qpct;
+      this.hpBarFill.clear();
+      const w = 240 * qpct;
+      const col = qpct > 0.5 ? 0x44ffa4 : qpct > 0.25 ? 0xffd166 : 0xff5050;
+      this.hpBarFill.roundRect(0, 0, w, 18, 4).fill({ color: col, alpha: 0.95 });
+      this.hpBarFill.roundRect(0, 0, w, 6, 4).fill({ color: 0xffffff, alpha: 0.18 });
+    }
+    this.hpText.text = `${Math.ceil(world.player.hp)} / 100`;
 
     // Score / level / time
     this.scoreText.text = `SCORE  ${world.state.score}`;
@@ -202,20 +210,24 @@ export class Hud {
     const lv = world.state.levels[world.state.weapon];
     this.weaponLevel.text = `LV ${lv}`;
     // Pickup progress pips — 2 circles. Hidden at MAX (LV5).
-    this.weaponPips.clear();
-    if (lv > 0 && lv < 5) {
-      const filled = world.state.pickupProgress[world.state.weapon] ?? 0;
-      for (let i = 0; i < 2; i++) {
-        const x = i * 10;
-        this.weaponPips.circle(x, 0, 3).stroke({ color: 0xc4e2ff, width: 1.4, alpha: 0.85 });
-        if (i < filled) {
-          this.weaponPips.circle(x, 0, 2.4).fill(0xc4e2ff);
+    const pipsKey = `${lv}-${world.state.pickupProgress[world.state.weapon] ?? 0}`;
+    if (pipsKey !== this.lastPipsKey) {
+      this.lastPipsKey = pipsKey;
+      this.weaponPips.clear();
+      if (lv > 0 && lv < 5) {
+        const filled = world.state.pickupProgress[world.state.weapon] ?? 0;
+        for (let i = 0; i < 2; i++) {
+          const x = i * 10;
+          this.weaponPips.circle(x, 0, 3).stroke({ color: 0xc4e2ff, width: 1.4, alpha: 0.85 });
+          if (i < filled) {
+            this.weaponPips.circle(x, 0, 2.4).fill(0xc4e2ff);
+          }
         }
+      } else if (lv >= 5) {
+        // Show a small "MAX" dot
+        this.weaponPips.circle(0, 0, 3).fill(0xffd166);
+        this.weaponPips.circle(5, 0, 3).fill(0xffd166);
       }
-    } else if (lv >= 5) {
-      // Show a small "MAX" dot
-      this.weaponPips.circle(0, 0, 3).fill(0xffd166);
-      this.weaponPips.circle(5, 0, 3).fill(0xffd166);
     }
 
     // Bombs / lives
@@ -225,12 +237,15 @@ export class Hud {
     // Boss bar
     if (world.boss && world.boss.alive) {
       this.setBossBarVisible(true);
-      this.bossBarBg.clear();
-      this.bossBarBg.roundRect(0, 0, 600, 14, 4).fill({ color: 0x000000, alpha: 0.55 });
-      this.bossBarFill.clear();
-      const bpct = Math.max(0, world.boss.hp / world.boss.maxHp);
-      this.bossBarFill.roundRect(0, 0, 600 * bpct, 14, 4).fill({ color: 0xff6644 });
-      this.bossBarFill.roundRect(0, 0, 600 * bpct, 4, 4).fill({ color: 0xffffff, alpha: 0.25 });
+      const bpct = Math.round(Math.max(0, world.boss.hp / world.boss.maxHp) * 600) / 600;
+      if (bpct !== this.lastBossPct) {
+        this.lastBossPct = bpct;
+        this.bossBarBg.clear();
+        this.bossBarBg.roundRect(0, 0, 600, 14, 4).fill({ color: 0x000000, alpha: 0.55 });
+        this.bossBarFill.clear();
+        this.bossBarFill.roundRect(0, 0, 600 * bpct, 14, 4).fill({ color: 0xff6644 });
+        this.bossBarFill.roundRect(0, 0, 600 * bpct, 4, 4).fill({ color: 0xffffff, alpha: 0.25 });
+      }
       this.bossName.text = world.boss.spec.name.toUpperCase();
     } else {
       this.setBossBarVisible(false);

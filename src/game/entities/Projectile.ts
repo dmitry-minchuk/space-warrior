@@ -209,6 +209,9 @@ export class Projectile {
 
 export class ProjectilePool {
   private free: Projectile[] = [];
+  prewarm(n: number): void {
+    while (this.free.length < n) this.free.push(new Projectile());
+  }
   spawn(opts: ProjectileOpts, layer: Container): Projectile {
     const p = this.free.pop() ?? new Projectile();
     p.configure(opts);

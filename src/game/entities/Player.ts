@@ -33,6 +33,7 @@ export class Player {
   trailTimer = 0;
   // Time accumulator used to drive engine flame flicker.
   flickerT = 0;
+  private flameRebuildT = 0;
 
   sprite: Sprite;
   hitRadius = 14;
@@ -109,6 +110,19 @@ export class Player {
 
     // --- Live engine flame ---------------------------------------------------
     this.flickerT += dt;
+    // The flame follows the ship every frame (cheap transform), but its
+    // vector geometry is only rebuilt at ~30 Hz: a full clear+retessellate
+    // of ~20 fills at 60 Hz was a constant tax on weak devices, and flame
+    // flicker at 30 Hz is visually identical.
+    this.engineFlame.position.set(this.x, this.y);
+    this.engineFlame.rotation = this.sprite.rotation;
+    this.flameRebuildT += dt;
+    if (this.flameRebuildT < 1 / 30) {
+      if (this.fireTimer > 0) this.fireTimer -= dt;
+      if (this.bonusMissileTimer > 0) this.bonusMissileTimer -= dt;
+      return;
+    }
+    this.flameRebuildT = 0;
     const speedFactor = Math.hypot(this.vx, this.vy) / Math.max(1, speedCap);
     const thrust = Math.max(0, -ay);
     const brake = Math.max(0, ay);
@@ -156,9 +170,6 @@ export class Player {
         this.engineFlame.circle(fx + sxoff, fy + syoff, 0.7).fill({ color: 0xffffff, alpha: 0.85 * alpha });
       }
     }
-    this.engineFlame.position.set(this.x, this.y);
-    this.engineFlame.rotation = this.sprite.rotation;
-
     if (this.fireTimer > 0) this.fireTimer -= dt;
     if (this.bonusMissileTimer > 0) this.bonusMissileTimer -= dt;
   }

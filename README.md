@@ -2,6 +2,19 @@
 
 Space Warrior is a vertical 2D scrolling shooter inspired by early-2000s arcade shooters. It is built with TypeScript, PixiJS 8, and Vite.
 
+**Play online:** [dmitry-minchuk.github.io/space-warrior](https://dmitry-minchuk.github.io/space-warrior/)  
+**Source:** [github.com/dmitry-minchuk/space-warrior](https://github.com/dmitry-minchuk/space-warrior)
+
+![Space Warrior gameplay screenshot](screen-ellipsoid.png)
+
+## Engineering Highlights
+
+- Built as an end-to-end playable product, not a demo: game loop, input handling, combat systems, procedural visuals, HUD, audio synthesis, level progression, and boss encounters.
+- Uses a browser runtime with PixiJS 8, TypeScript, Vite, Web Audio, and performance-sensitive rendering for a canvas-heavy arcade game.
+- Includes dev telemetry for observing real gameplay sessions, balancing difficulty, and debugging run-level behavior.
+- Ships through GitHub Actions with SemVer releases, GitHub Pages deployment, single-file HTML packaging, and an Android WebView APK.
+- Doubled as a practical experiment in using AI agents to explore an unfamiliar domain while keeping architecture, release automation, and product quality under human review.
+
 ## Game Concept
 
 - 20 levels with escalating difficulty.
